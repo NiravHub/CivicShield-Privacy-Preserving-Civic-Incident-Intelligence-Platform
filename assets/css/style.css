@@ -1,0 +1,444 @@
+/**
+ * CivicShield - Design System & Custom Stylesheet
+ * Integrates with Bootstrap 5.3 & Leaflet.js
+ * Primary Theme: Professional Deep Navy, Clean White, Light Neutrals
+ * High Accessibility: WCAG AA/AAA Contrast, Visible Focus Rings, Reduced-Motion Support
+ */
+
+:root {
+    /* Brand Navy Palette */
+    --cs-navy-950: #061120;
+    --cs-navy-900: #0d1e38;
+    --cs-navy-850: #122849;
+    --cs-navy-800: #17325c;
+    --cs-navy-700: #1e3f73;
+    --cs-navy-600: #254d8c;
+
+    /* Accent & Civic Primary */
+    --cs-blue-600: #0284c7;
+    --cs-blue-500: #0ea5e9;
+    --cs-blue-400: #38bdf8;
+    --cs-blue-100: #e0f2fe;
+    --cs-blue-50:  #f0f9ff;
+
+    /* Status Colors */
+    /* Critical Severity / High Risk (Red) */
+    --cs-critical:        #dc2626;
+    --cs-critical-bg:     #fee2e2;
+    --cs-critical-border: #fca5a5;
+    --cs-critical-text:   #991b1b;
+
+    /* Pending / Triage / In-Progress (Amber / Warm Gold) */
+    --cs-pending:         #d97706;
+    --cs-pending-bg:      #fef3c7;
+    --cs-pending-border:  #fcd34d;
+    --cs-pending-text:    #92400e;
+
+    /* Verified Completion / Resolved (Green) */
+    --cs-resolved:        #16a34a;
+    --cs-resolved-bg:     #dcfce7;
+    --cs-resolved-border: #86efac;
+    --cs-resolved-text:   #166534;
+
+    /* Neutral & Background Tones */
+    --cs-neutral-900: #0f172a;
+    --cs-neutral-800: #1e293b;
+    --cs-neutral-700: #334155;
+    --cs-neutral-600: #475569;
+    --cs-neutral-500: #64748b;
+    --cs-neutral-400: #94a3b8;
+    --cs-neutral-300: #cbd5e1;
+    --cs-neutral-200: #e2e8f0;
+    --cs-neutral-100: #f1f5f9;
+    --cs-neutral-50:  #f8fafc;
+    --cs-white:       #ffffff;
+
+    /* Elevation & Shadows */
+    --cs-shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+    --cs-shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.1), 0 1px 2px -1px rgba(15, 23, 42, 0.1);
+    --cs-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -2px rgba(15, 23, 42, 0.08);
+    --cs-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
+
+    /* Radii */
+    --cs-radius-sm: 6px;
+    --cs-radius-md: 10px;
+    --cs-radius-lg: 16px;
+    --cs-radius-full: 9999px;
+
+    /* Focus Outline */
+    --cs-focus-ring: 0 0 0 3px rgba(2, 132, 199, 0.35);
+}
+
+/* ==============================================================================
+ * Global Base & Typography
+ * ============================================================================== */
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--cs-neutral-800);
+    background-color: var(--cs-neutral-50);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Accessible Skip Link */
+.cs-skip-link {
+    position: absolute;
+    top: -40px;
+    left: 10px;
+    background: var(--cs-navy-900);
+    color: #ffffff;
+    padding: 8px 16px;
+    z-index: 9999;
+    border-radius: var(--cs-radius-sm);
+    text-decoration: none;
+    font-weight: 600;
+    transition: top 0.2s ease;
+}
+
+.cs-skip-link:focus {
+    top: 10px;
+    outline: 3px solid var(--cs-blue-400);
+}
+
+/* Universal Focus Visible Styling */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--cs-blue-600) !important;
+    outline-offset: 2px !important;
+    box-shadow: var(--cs-focus-ring) !important;
+}
+
+/* ==============================================================================
+ * Navigation Bar
+ * ============================================================================== */
+.cs-navbar {
+    background-color: var(--cs-navy-900) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+}
+
+.cs-navbar .navbar-brand {
+    font-size: 1.25rem;
+    letter-spacing: -0.01em;
+}
+
+.cs-brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(2, 132, 199, 0.2);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: var(--cs-radius-sm);
+    color: var(--cs-blue-400);
+    font-size: 1.15rem;
+}
+
+.cs-navbar .nav-link {
+    color: var(--cs-neutral-300) !important;
+    font-weight: 500;
+    padding: 0.5rem 0.9rem !important;
+    border-radius: var(--cs-radius-sm);
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.cs-navbar .nav-link:hover,
+.cs-navbar .nav-link:focus {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.cs-navbar .nav-link.active {
+    color: #ffffff !important;
+    background-color: rgba(2, 132, 199, 0.25);
+    font-weight: 600;
+}
+
+/* ==============================================================================
+ * Buttons & Inputs
+ * ============================================================================== */
+.btn-cs-primary {
+    background-color: var(--cs-blue-600);
+    border-color: var(--cs-blue-600);
+    color: #ffffff;
+    font-weight: 600;
+    padding: 0.6rem 1.4rem;
+    border-radius: var(--cs-radius-sm);
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-cs-primary:hover,
+.btn-cs-primary:focus {
+    background-color: #0369a1;
+    border-color: #0369a1;
+    color: #ffffff;
+}
+
+.btn-cs-navy {
+    background-color: var(--cs-navy-900);
+    border-color: var(--cs-navy-900);
+    color: #ffffff;
+    font-weight: 600;
+    padding: 0.6rem 1.4rem;
+    border-radius: var(--cs-radius-sm);
+}
+
+.btn-cs-navy:hover,
+.btn-cs-navy:focus {
+    background-color: var(--cs-navy-800);
+    border-color: var(--cs-navy-800);
+    color: #ffffff;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--cs-blue-500);
+    box-shadow: var(--cs-focus-ring);
+}
+
+/* ==============================================================================
+ * Cards & Containers
+ * ============================================================================== */
+.cs-card {
+    border: 1px solid var(--cs-neutral-200);
+    border-radius: var(--cs-radius-md);
+    background-color: var(--cs-white);
+    box-shadow: var(--cs-shadow-xs);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.cs-card:hover {
+    box-shadow: var(--cs-shadow-md);
+    border-color: var(--cs-neutral-300);
+}
+
+.cs-card-hero {
+    background: linear-gradient(180deg, var(--cs-navy-950) 0%, var(--cs-navy-900) 100%);
+    border-bottom: 1px solid var(--cs-navy-800);
+    color: #ffffff;
+}
+
+/* Feature & Category Cards */
+.cs-category-card {
+    border: 1px solid var(--cs-neutral-200);
+    border-radius: var(--cs-radius-md);
+    background: #ffffff;
+    padding: 1.5rem;
+    height: 100%;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.cs-category-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--cs-shadow-md);
+    border-color: var(--cs-blue-500);
+}
+
+.cs-category-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--cs-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+}
+
+.cs-cat-roads      { background: #eff6ff; color: #1d4ed8; }
+.cs-cat-sanitation { background: #fef2f2; color: #b91c1c; }
+.cs-cat-water      { background: #ecfeff; color: #0e7490; }
+.cs-cat-electrical { background: #fefce8; color: #a16207; }
+.cs-cat-health     { background: #f0fdf4; color: #15803d; }
+.cs-cat-safety     { background: #faf5ff; color: #7e22ce; }
+
+/* ==============================================================================
+ * Status & Severity Badges
+ * ============================================================================== */
+.cs-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35em 0.75em;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: var(--cs-radius-full);
+    line-height: 1.2;
+    text-transform: capitalize;
+}
+
+/* Status States */
+.cs-badge-reported,
+.cs-badge-pending {
+    background-color: var(--cs-pending-bg);
+    color: var(--cs-pending-text);
+    border: 1px solid var(--cs-pending-border);
+}
+
+.cs-badge-in_progress,
+.cs-badge-assigned {
+    background-color: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.cs-badge-resolved,
+.cs-badge-verified {
+    background-color: var(--cs-resolved-bg);
+    color: var(--cs-resolved-text);
+    border: 1px solid var(--cs-resolved-border);
+}
+
+.cs-badge-critical {
+    background-color: var(--cs-critical-bg);
+    color: var(--cs-critical-text);
+    border: 1px solid var(--cs-critical-border);
+}
+
+.cs-badge-high {
+    background-color: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #ffedd5;
+}
+
+.cs-badge-medium {
+    background-color: #fefce8;
+    color: #854d0e;
+    border: 1px solid #fef08a;
+}
+
+.cs-badge-low {
+    background-color: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+/* ==============================================================================
+ * Leaflet Map Container & Controls
+ * ============================================================================== */
+.cs-map-wrapper {
+    position: relative;
+    border-radius: var(--cs-radius-md);
+    overflow: hidden;
+    border: 1px solid var(--cs-neutral-300);
+    box-shadow: var(--cs-shadow-sm);
+}
+
+.cs-map-container {
+    height: 480px;
+    width: 100%;
+    z-index: 1;
+}
+
+.cs-map-legend {
+    background: #ffffff;
+    border: 1px solid var(--cs-neutral-200);
+    border-radius: var(--cs-radius-sm);
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    box-shadow: var(--cs-shadow-sm);
+}
+
+.cs-legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+/* Leaflet Custom Marker Icons */
+.cs-marker-pin {
+    width: 30px;
+    height: 30px;
+    border-radius: 50% 50% 50% 0;
+    position: absolute;
+    transform: rotate(-45deg);
+    left: 50%;
+    top: 50%;
+    margin: -15px 0 0 -15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.cs-marker-pin::after {
+    content: '';
+    width: 12px;
+    height: 12px;
+    margin: 8px 0 0 8px;
+    background: #ffffff;
+    position: absolute;
+    border-radius: 50%;
+}
+
+.cs-marker-critical { background: var(--cs-critical); }
+.cs-marker-high     { background: #ea580c; }
+.cs-marker-medium   { background: var(--cs-pending); }
+.cs-marker-resolved { background: var(--cs-resolved); }
+
+/* ==============================================================================
+ * Process Steps / How It Works
+ * ============================================================================== */
+.cs-step-card {
+    position: relative;
+    padding: 1.75rem 1.5rem;
+    border-radius: var(--cs-radius-md);
+    background: #ffffff;
+    border: 1px solid var(--cs-neutral-200);
+    height: 100%;
+}
+
+.cs-step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: var(--cs-navy-900);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+}
+
+/* Demo Content Tag */
+.cs-demo-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    background-color: rgba(2, 132, 199, 0.1);
+    color: var(--cs-blue-600);
+    border: 1px solid rgba(2, 132, 199, 0.25);
+    border-radius: var(--cs-radius-full);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+/* Reduced Motion Preference Support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

@@ -1,0 +1,62 @@
+# ==============================================================================
+# CivicShield Platform - Git Ignore Rules
+# Excludes local secrets, personal uploads, application logs, and environment files
+# ==============================================================================
+
+# Environment and Secrets (strictly local, never commit)
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+config.local.php
+
+# Application Logs and Runtime Data
+logs/*
+!logs/.gitkeep
+*.log
+
+# User Uploads & Attachments (preserve directory structure via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+!uploads/.htaccess
+!uploads/avatars/
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+!uploads/incidents/
+uploads/incidents/*
+!uploads/incidents/.gitkeep
+
+# Operating System & File System Metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# IDE, Editor, and Tool Artifacts
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Temporary, Cache, and Scratch Files
+scratch/
+tmp/
+cache/
+*.tmp
+*.bak
+
+# Database Backups & Local Dump Files
+*.sql.gz
+*.sql.zip
+*.dump
+*.backup
+db_backup*.sql
