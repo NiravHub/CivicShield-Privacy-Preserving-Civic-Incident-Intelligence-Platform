@@ -8,6 +8,7 @@ Response::ok('CivicShield API Gateway v1', [
     'environment' => APP_ENV,
     'version'     => '1.0.0',
     'endpoints'   => [
-        'health' => BASE_URL . '/api/v1/health.php'
+        'health' => BASE_URL . '/api/v1/health.php',
+        'track'  => BASE_URL . '/api/v1/track.php'
     ]
 ]);

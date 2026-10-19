@@ -1001,4 +1001,190 @@ class IncidentManager
         $stmt->execute();
         return $stmt->fetchAll();
     }
+
+    /**
+     * Promote an unlinked or standalone citizen intake report into a canonical consolidated incident.
+     * Applies Differential Geo-Obfuscation (approx. 150m noise boundary), initial priority scoring,
+     * status history recording, and audit logging.
+     *
+     * @param int      $reportId    ID of the incident_report record
+     * @param PDO|null $pdo         Active PDO instance
+     * @param int|null $actorUserId ID of user performing triage (null for automatic system intake)
+     * @return array [success => bool, message => string, incident_id => ?int, incident_reference => ?string]
+     */
+    public static function createIncidentFromReport(int $reportId, ?PDO $pdo = null, ?int $actorUserId = null): array
+    {
+        if ($pdo === null) {
+            $pdo = Database::getConnection();
+        }
+
+        $ownTransaction = false;
+
+        try {
+            // 1. Fetch the report record
+            $stmt = $pdo->prepare(
+                'SELECT r.*, c.name AS category_name, c.resolution_sla_hours, c.default_severity
+                 FROM incident_reports r
+                 JOIN incident_categories c ON c.id = r.category_id
+                 WHERE r.id = :id
+                 LIMIT 1'
+            );
+            $stmt->execute([':id' => $reportId]);
+            $report = $stmt->fetch();
+
+            if (!$report) {
+                return ['success' => false, 'message' => 'Incident report not found.'];
+            }
+
+            if (!empty($report['incident_id'])) {
+                return [
+                    'success'            => false,
+                    'message'            => 'Report is already consolidated into an incident.',
+                    'incident_id'        => (int)$report['incident_id']
+                ];
+            }
+
+            $ownTransaction = !$pdo->inTransaction();
+            if ($ownTransaction) {
+                $pdo->beginTransaction();
+            }
+
+            // 2. Generate canonical incident reference: CS-SRT-YYYY-XXXX
+            $incidentRef = sprintf('CS-SRT-%s-%s', date('Y'), strtoupper(bin2hex(random_bytes(3))));
+
+            // 3. Compute Differential Geo-Obfuscation (~150m bounded fuzzing radius)
+            $fuzzRadius = (int)Env::get('GEO_FUZZ_RADIUS_METERS', 150);
+            if ($report['raw_lat'] !== null && $report['raw_lng'] !== null) {
+                $rawLat = (float)$report['raw_lat'];
+                $rawLng = (float)$report['raw_lng'];
+
+                // Bounded pseudorandom displacement
+                $angle = (mt_rand(0, 36000) / 100.0) * (M_PI / 180.0);
+                $distanceMeters = mt_rand((int)($fuzzRadius * 0.35), $fuzzRadius);
+                $deltaLat = ($distanceMeters * cos($angle)) / 111320.0;
+                $deltaLng = ($distanceMeters * sin($angle)) / (111320.0 * max(0.1, cos(deg2rad($rawLat))));
+
+                $obfLat = round($rawLat + $deltaLat, 8);
+                $obfLng = round($rawLng + $deltaLng, 8);
+            } else {
+                // Surat Municipal Center default
+                $obfLat = 21.17020000;
+                $obfLng = 72.83110000;
+            }
+
+            // 4. Determine neighborhood locality
+            $neighborhood = 'Surat Municipal Jurisdiction';
+            if (!empty($report['location_description'])) {
+                $loc = trim((string)$report['location_description']);
+                if (str_contains($loc, ',')) {
+                    $parts = array_map('trim', explode(',', $loc));
+                    $neighborhood = end($parts) ?: $loc;
+                } else {
+                    $neighborhood = $loc;
+                }
+                if (mb_strlen($neighborhood) > 140) {
+                    $neighborhood = mb_substr($neighborhood, 0, 140) . '...';
+                }
+            }
+
+            // 5. Compute initial priority score
+            $severity = $report['submitted_severity'] ?: ($report['default_severity'] ?? 'medium');
+            $slaHours = (int)($report['resolution_sla_hours'] ?? 24);
+            $priResult = PriorityScorer::computeScore($severity, 1, 0.0, $slaHours);
+            $priorityScore = $priResult['score'];
+            $priorityBreakdown = json_encode($priResult['breakdown']);
+
+            // 6. Insert new canonical incident
+            $incStmt = $pdo->prepare(
+                'INSERT INTO incidents 
+                 (incident_reference, category_id, title, description, severity, priority_score, priority_breakdown,
+                  status, obfuscated_lat, obfuscated_lng, fuzz_radius_meters, neighborhood, city, reports_count, created_at, updated_at)
+                 VALUES
+                 (:ref, :cat_id, :title, :description, :sev, :pri_score, :pri_breakdown,
+                  \'reported\', :lat, :lng, :fuzz_radius, :neighborhood, \'Surat\', 1, NOW(), NOW())'
+            );
+            $incStmt->execute([
+                ':ref'           => $incidentRef,
+                ':cat_id'        => $report['category_id'],
+                ':title'         => $report['title'],
+                ':description'   => $report['description'],
+                ':sev'           => $severity,
+                ':pri_score'     => $priorityScore,
+                ':pri_breakdown' => $priorityBreakdown,
+                ':lat'           => $obfLat,
+                ':lng'           => $obfLng,
+                ':fuzz_radius'   => $fuzzRadius,
+                ':neighborhood'  => $neighborhood
+            ]);
+            $incidentId = (int)$pdo->lastInsertId();
+
+            // 7. Link report to this consolidated incident
+            $upRepStmt = $pdo->prepare(
+                'UPDATE incident_reports 
+                 SET incident_id = :inc_id, status = \'standalone\'
+                 WHERE id = :rep_id'
+            );
+            $upRepStmt->execute([
+                ':inc_id' => $incidentId,
+                ':rep_id' => $reportId
+            ]);
+
+            // 8. Record initial status history
+            $histStmt = $pdo->prepare(
+                'INSERT INTO incident_status_history 
+                 (incident_id, changed_by_user_id, status_from, status_to, reason, is_public, created_at)
+                 VALUES (:inc_id, :actor_id, \'intake\', \'reported\', :reason, 1, NOW())'
+            );
+            $histStmt->execute([
+                ':inc_id'   => $incidentId,
+                ':actor_id' => $actorUserId,
+                ':reason'   => sprintf('Created standalone municipal incident from citizen intake report %s.', $report['report_reference'])
+            ]);
+
+            // 9. Record audit log
+            $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $ipHash = hash('sha256', $clientIp . (string)Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
+            $actorRole = $actorUserId ? 'admin' : 'system';
+
+            $auditStmt = $pdo->prepare(
+                'INSERT INTO audit_logs 
+                 (actor_user_id, actor_role, action, target_type, target_id, ip_hash, metadata_json, created_at)
+                 VALUES (:actor_id, :actor_role, \'INCIDENT_CREATED_FROM_REPORT\', \'incident\', :target_id, :ip_hash, :meta, NOW())'
+            );
+            $auditStmt->execute([
+                ':actor_id'   => $actorUserId,
+                ':actor_role' => $actorRole,
+                ':target_id'  => (string)$incidentId,
+                ':ip_hash'    => $ipHash,
+                ':meta'       => json_encode([
+                    'report_id'          => $reportId,
+                    'report_reference'   => $report['report_reference'],
+                    'incident_reference' => $incidentRef,
+                    'priority_score'     => $priorityScore,
+                    'fuzz_radius_meters' => $fuzzRadius
+                ])
+            ]);
+
+            if ($ownTransaction) {
+                $pdo->commit();
+            }
+
+            return [
+                'success'            => true,
+                'message'            => sprintf('Incident %s created successfully from report %s.', $incidentRef, $report['report_reference']),
+                'incident_id'        => $incidentId,
+                'incident_reference' => $incidentRef
+            ];
+
+        } catch (Throwable $e) {
+            if ($ownTransaction && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            @error_log('[Incident Creation From Report Error] ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to promote report into canonical incident: ' . $e->getMessage()
+            ];
+        }
+    }
 }

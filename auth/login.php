@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $redirectTarget = isset($_POST['redirect']) ? Session::sanitizeRedirect((string)$_POST['redirect']) : '';
 
     // 2. Client Throttling / Rate-Limiting Check
-    $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    $clientIp = Session::getClientIp();
     $throttleKey = $clientIp . '_' . strtolower($formUsername);
     [$isThrottled, $retryAfter] = Session::isLoginThrottled($throttleKey, 5, 300);
 
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Generic failure response (prevent account enumeration)
             if (!$user || !password_verify($password, $user['password_hash'])) {
-                Session::recordFailedLogin($throttleKey);
+                Session::recordFailedLogin($throttleKey, $clientIp, $formUsername);
                 $errors[] = 'Invalid username or password.';
             } else {
                 // Check account eligibility status

@@ -41,13 +41,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $action = (string)($_POST['action'] ?? '');
     $incidentId = isset($_POST['incident_id']) ? (int)$_POST['incident_id'] : 0;
+    $reportId = isset($_POST['report_id']) ? (int)$_POST['report_id'] : 0;
 
-    if ($incidentId <= 0) {
+    if ($action !== 'promote_report' && $incidentId <= 0) {
         $errors[] = 'Invalid incident identifier.';
+    } elseif ($action === 'promote_report' && $reportId <= 0) {
+        $errors[] = 'Invalid report identifier for incident promotion.';
     }
 
     if (empty($errors)) {
-        if ($action === 'assign') {
+        if ($action === 'promote_report') {
+            $res = IncidentManager::createIncidentFromReport($reportId, $pdo, $adminUserId);
+            if ($res['success']) {
+                $msg = $res['message'];
+                if (Response::isJsonRequest()) {
+                    Response::ok($msg, $res);
+                }
+                $_SESSION['_flash_success'] = $msg;
+                header('Location: ' . BASE_URL . '/admin/incidents.php');
+                exit;
+            } else {
+                $errors[] = $res['message'];
+            }
+        } elseif ($action === 'assign') {
             $officerId = isset($_POST['officer_id']) ? (int)$_POST['officer_id'] : 0;
             $instructions = trim((string)($_POST['instructions'] ?? ''));
 
@@ -136,6 +152,22 @@ while ($row = $statStmt->fetch()) {
     $statusTotals['total'] += $c;
 }
 
+// Query Unlinked Citizen Intake Reports awaiting triage/promotion
+$pendingReports = [];
+try {
+    $prepStmt = $pdo->query(
+        "SELECT r.id, r.report_reference, r.title, r.submitted_severity, r.created_at, c.name AS category_name, c.icon AS category_icon
+         FROM incident_reports r 
+         JOIN incident_categories c ON c.id = r.category_id 
+         WHERE r.incident_id IS NULL AND r.status IN ('pending_review', 'standalone') 
+         ORDER BY r.created_at DESC 
+         LIMIT 10"
+    );
+    $pendingReports = $prepStmt->fetchAll();
+} catch (Throwable $e) {
+    @error_log('[Admin Incidents Pending Reports Error] ' . $e->getMessage());
+}
+
 require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
 ?>
 
@@ -216,6 +248,58 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
             </div>
         </div>
     </div>
+
+    <?php if (!empty($pendingReports)): ?>
+        <div class="card cs-card shadow-sm p-4 mb-4 border-warning border-start border-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-inbox-fill text-warning me-2"></i>Citizen Intake Triage Queue
+                    </h5>
+                    <div class="text-muted small">
+                        <?= count($pendingReports) ?> unlinked citizen report(s) awaiting administrative triage and canonical incident registration
+                    </div>
+                </div>
+                <span class="badge bg-warning text-dark fw-bold px-3 py-2">Requires Triage Action</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light text-secondary">
+                        <tr>
+                            <th scope="col">Report Ref</th>
+                            <th scope="col">Category</th>
+                            <th scope="col">Title</th>
+                            <th scope="col">Severity</th>
+                            <th scope="col">Submitted</th>
+                            <th scope="col" class="text-end">Triage Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($pendingReports as $prep): ?>
+                            <tr>
+                                <td><span class="badge bg-secondary-subtle text-dark border font-monospace"><?= htmlspecialchars($prep['report_reference']) ?></span></td>
+                                <td><i class="bi <?= htmlspecialchars($prep['category_icon'] ?? 'bi-tag') ?> text-info me-1"></i><?= htmlspecialchars($prep['category_name']) ?></td>
+                                <td class="fw-semibold text-dark"><?= htmlspecialchars($prep['title']) ?></td>
+                                <td><span class="badge cs-badge-<?= htmlspecialchars($prep['submitted_severity']) ?> text-uppercase"><?= htmlspecialchars($prep['submitted_severity']) ?></span></td>
+                                <td class="text-muted"><?= date('d M Y, h:i A', strtotime($prep['created_at'])) ?></td>
+                                <td class="text-end">
+                                    <form method="POST" action="<?= htmlspecialchars(BASE_URL) ?>/admin/incidents.php" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Session::getCsrfToken()) ?>">
+                                        <input type="hidden" name="action" value="promote_report">
+                                        <input type="hidden" name="report_id" value="<?= (int)$prep['id'] ?>">
+                                        <button type="submit" class="btn btn-warning btn-sm fw-semibold" title="Create Canonical Municipal Incident">
+                                            <i class="bi bi-box-arrow-in-right me-1"></i> Promote to Incident
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- Filter & Search Panel -->
     <div class="card cs-card shadow-sm p-4 mb-4 border-light-subtle">

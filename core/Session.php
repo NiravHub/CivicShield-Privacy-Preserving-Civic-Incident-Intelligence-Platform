@@ -113,6 +113,21 @@ class Session
     }
 
     /**
+     * Retrieve trusted client IP address from server environment.
+     * Rejects untrusted forwarding headers to prevent IP spoofing in rate-limiting checks.
+     * In proxy architectures, header rewriting must occur via trusted web server modules (e.g. Apache mod_remoteip).
+     */
+    public static function getClientIp(): string
+    {
+        $rawIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $ip = trim((string)$rawIp);
+        if (filter_var($ip, FILTER_VALIDATE_IP)) {
+            return $ip;
+        }
+        return '127.0.0.1';
+    }
+
+    /**
      * Store a flash message for the next page request.
      */
     public static function setFlash(string $type, string $message): void
@@ -192,21 +207,117 @@ class Session
     }
 
     /**
-     * Login Throttling Helper: Check if identifier has exceeded maximum failed attempts.
+     * Login Throttling Helper: Determine if client identifier has exceeded rate limits.
+     * Enforces persistent database-backed rate limiting surviving session clears and cookie resets.
+     * Evaluates both targeted identifier attempts (default max 5 in 300s) and source IP abuse (max 20 in 900s).
+     * Fails safely to session storage if database connectivity is unavailable.
      *
-     * @param string $identifier IP address or username hash
-     * @param int $maxAttempts Maximum allowed failures (default 5)
-     * @param int $decaySeconds Window duration (default 300s = 5 minutes)
+     * @param string $identifier Unique client or account key (e.g. "IP_username" or key hash)
+     * @param int $maxAttempts Maximum allowed failures within window (default 5)
+     * @param int $decaySeconds Rolling window duration in seconds (default 300s = 5 minutes)
      * @return array [bool $isThrottled, int $remainingSeconds]
      */
     public static function isLoginThrottled(string $identifier, int $maxAttempts = 5, int $decaySeconds = 300): array
     {
         self::start();
+        $currentTime = time();
+        $identifier = trim($identifier);
+        $rateKey = hash('sha256', strtolower($identifier));
+
+        // 1. Attempt Database-Backed Persistent Throttling Check
+        try {
+            $pdo = Database::getConnection();
+
+            // Extract client IP if present in identifier, or fallback to validated client IP
+            $ip = null;
+            if (str_contains($identifier, '_')) {
+                $parts = explode('_', $identifier, 2);
+                if (filter_var($parts[0], FILTER_VALIDATE_IP)) {
+                    $ip = $parts[0];
+                }
+            }
+            if ($ip === null) {
+                $ip = self::getClientIp();
+            }
+
+            // Check A: Source-wide IP abuse mitigation (max 20 failed attempts across all accounts in 15 minutes)
+            if ($ip !== null) {
+                $ipWindowSeconds = 900;
+                $maxIpAttempts = 20;
+                $ipWindowStart = $currentTime - $ipWindowSeconds;
+
+                // Bounded count query leveraging idx_rate_ip_time
+                $ipCountStmt = $pdo->prepare(
+                    'SELECT COUNT(*) FROM login_rate_limits 
+                     WHERE ip_address = :ip AND attempted_at >= FROM_UNIXTIME(:window_start)'
+                );
+                $ipCountStmt->execute([
+                    ':ip'           => $ip,
+                    ':window_start' => $ipWindowStart,
+                ]);
+                $ipCount = (int)$ipCountStmt->fetchColumn();
+
+                if ($ipCount >= $maxIpAttempts) {
+                    // Fetch only the single threshold boundary attempt (O(1) memory)
+                    $offset = (int)($maxIpAttempts - 1);
+                    $ipTimeStmt = $pdo->prepare(
+                        'SELECT UNIX_TIMESTAMP(attempted_at) AS attempt_time 
+                         FROM login_rate_limits 
+                         WHERE ip_address = :ip AND attempted_at >= FROM_UNIXTIME(:window_start) 
+                         ORDER BY attempted_at DESC 
+                         LIMIT 1 OFFSET ' . $offset
+                    );
+                    $ipTimeStmt->execute([
+                        ':ip'           => $ip,
+                        ':window_start' => $ipWindowStart,
+                    ]);
+                    $thresholdIp = (int)$ipTimeStmt->fetchColumn();
+                    $ipRemaining = $thresholdIp > 0 ? ($ipWindowSeconds - ($currentTime - $thresholdIp)) : $ipWindowSeconds;
+                    return [true, max(1, $ipRemaining)];
+                }
+            }
+
+            // Check B: Identifier-specific persistent throttling (IP + Account pair)
+            $windowStart = $currentTime - $decaySeconds;
+            // Bounded count query leveraging idx_rate_key_time
+            $rateCountStmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM login_rate_limits 
+                 WHERE rate_key = :rate_key AND attempted_at >= FROM_UNIXTIME(:window_start)'
+            );
+            $rateCountStmt->execute([
+                ':rate_key'     => $rateKey,
+                ':window_start' => $windowStart,
+            ]);
+            $rateCount = (int)$rateCountStmt->fetchColumn();
+
+            if ($rateCount >= $maxAttempts) {
+                // Fetch only the single threshold boundary attempt (O(1) memory)
+                $offset = (int)($maxAttempts - 1);
+                $rateTimeStmt = $pdo->prepare(
+                    'SELECT UNIX_TIMESTAMP(attempted_at) AS attempt_time 
+                     FROM login_rate_limits 
+                     WHERE rate_key = :rate_key AND attempted_at >= FROM_UNIXTIME(:window_start) 
+                     ORDER BY attempted_at DESC 
+                     LIMIT 1 OFFSET ' . $offset
+                );
+                $rateTimeStmt->execute([
+                    ':rate_key'     => $rateKey,
+                    ':window_start' => $windowStart,
+                ]);
+                $thresholdRate = (int)$rateTimeStmt->fetchColumn();
+                $remaining = $thresholdRate > 0 ? ($decaySeconds - ($currentTime - $thresholdRate)) : $decaySeconds;
+                return [true, max(1, $remaining)];
+            }
+
+            return [false, 0];
+        } catch (Throwable $e) {
+            // Fail-safe: Log error without exposing details and fallback to session-based throttling
+            @error_log('[RateLimit DB Fallback] ' . $e->getMessage());
+        }
+
+        // 2. Fallback: Session-based in-memory throttling (used if database is unreachable)
         $attemptsKey = 'login_attempts_' . md5($identifier);
         $attempts = $_SESSION[$attemptsKey] ?? [];
-
-        $currentTime = time();
-        // Filter attempts within decay window
         $recentAttempts = array_filter($attempts, fn($t) => ($currentTime - $t) < $decaySeconds);
         $_SESSION[$attemptsKey] = $recentAttempts;
 
@@ -221,10 +332,53 @@ class Session
 
     /**
      * Login Throttling Helper: Record a failed login attempt timestamp.
+     * Persists attempt to database to survive session clears, with automatic maintenance pruning.
+     *
+     * @param string $identifier Unique client or account key
+     * @param string|null $ip Optional explicit client IP
+     * @param string|null $username Optional target username
      */
-    public static function recordFailedLogin(string $identifier): void
+    public static function recordFailedLogin(string $identifier, ?string $ip = null, ?string $username = null): void
     {
         self::start();
+        $identifier = trim($identifier);
+        $rateKey = hash('sha256', strtolower($identifier));
+
+        // Auto-extract IP and username from identifier if not provided
+        if ($ip === null && str_contains($identifier, '_')) {
+            $parts = explode('_', $identifier, 2);
+            if (filter_var($parts[0], FILTER_VALIDATE_IP)) {
+                $ip = $parts[0];
+                if ($username === null && !empty($parts[1])) {
+                    $username = $parts[1];
+                }
+            }
+        }
+        $ip = $ip ?? self::getClientIp();
+        $username = $username ? strtolower(trim($username)) : null;
+
+        // 1. Record in Database
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare(
+                'INSERT INTO login_rate_limits (rate_key, ip_address, username, attempted_at) 
+                 VALUES (:rate_key, :ip_address, :username, NOW())'
+            );
+            $stmt->execute([
+                ':rate_key'   => $rateKey,
+                ':ip_address' => substr($ip, 0, 45),
+                ':username'   => $username ? substr($username, 0, 60) : null,
+            ]);
+
+            // Periodic probabilistic pruning (5% of requests) for records older than 48 hours
+            if (mt_rand(1, 20) === 1) {
+                $pdo->query('DELETE FROM login_rate_limits WHERE attempted_at < NOW() - INTERVAL 2 DAY');
+            }
+        } catch (Throwable $e) {
+            @error_log('[RateLimit DB Record Error] ' . $e->getMessage());
+        }
+
+        // 2. Also record in session as fallback cache
         $attemptsKey = 'login_attempts_' . md5($identifier);
         $attempts = $_SESSION[$attemptsKey] ?? [];
         $attempts[] = time();
@@ -233,10 +387,26 @@ class Session
 
     /**
      * Login Throttling Helper: Clear failed login attempts upon successful login.
+     * Deletes persistent database records for the specific rate key and clears session state.
+     *
+     * @param string $identifier Unique client or account key
      */
     public static function clearFailedLogins(string $identifier): void
     {
         self::start();
+        $identifier = trim($identifier);
+        $rateKey = hash('sha256', strtolower($identifier));
+
+        // 1. Clear from Database
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare('DELETE FROM login_rate_limits WHERE rate_key = :rate_key');
+            $stmt->execute([':rate_key' => $rateKey]);
+        } catch (Throwable $e) {
+            @error_log('[RateLimit DB Clear Error] ' . $e->getMessage());
+        }
+
+        // 2. Clear from Session
         $attemptsKey = 'login_attempts_' . md5($identifier);
         unset($_SESSION[$attemptsKey]);
     }

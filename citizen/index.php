@@ -21,10 +21,12 @@ try {
     $stmt = $pdo->prepare(
         'SELECT r.id, r.report_reference, r.title, r.submitted_severity, r.status, r.created_at,
                 c.name AS category_name, c.department_code,
-                a.file_path, a.exif_scrubbed
+                a.file_path, a.exif_scrubbed,
+                i.incident_reference, i.status AS consolidated_status
          FROM incident_reports r
          JOIN incident_categories c ON r.category_id = c.id
          LEFT JOIN incident_attachments a ON a.report_id = r.id
+         LEFT JOIN incidents i ON r.incident_id = i.id
          WHERE r.citizen_id = :uid
          ORDER BY r.created_at DESC'
     );
@@ -33,9 +35,17 @@ try {
 
     $totalFiled = count($myReports);
     foreach ($myReports as $rep) {
-        if ($rep['status'] === 'resolved') {
+        $effective = $rep['status'];
+        if (!empty($rep['consolidated_status'])) {
+            if (in_array($rep['consolidated_status'], ['resolved', 'closed'], true)) {
+                $effective = 'resolved';
+            } elseif (in_array($rep['consolidated_status'], ['assigned', 'in_progress', 'triaged'], true)) {
+                $effective = $rep['consolidated_status'];
+            }
+        }
+        if ($effective === 'resolved') {
             $resolvedCount++;
-        } elseif (in_array($rep['status'], ['pending_review', 'consolidated', 'duplicate', 'standalone'], true)) {
+        } elseif (!in_array($effective, ['rejected'], true)) {
             $inProgressCount++;
         }
     }
@@ -120,29 +130,48 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                     <tbody>
                         <?php foreach ($myReports as $report): ?>
                             <?php
-                            $status = $report['status'];
-                            $badgeClass = match ($status) {
+                            $rawStatus = $report['status'];
+                            $effectiveStatus = $rawStatus;
+                            if (!empty($report['consolidated_status'])) {
+                                if (in_array($report['consolidated_status'], ['resolved', 'closed'], true)) {
+                                    $effectiveStatus = 'resolved';
+                                } elseif (in_array($report['consolidated_status'], ['assigned', 'in_progress', 'triaged'], true)) {
+                                    $effectiveStatus = $report['consolidated_status'];
+                                }
+                            }
+
+                            $badgeClass = match ($effectiveStatus) {
                                 'resolved'       => 'cs-badge-resolved',
                                 'in_progress'    => 'cs-badge-in_progress',
+                                'assigned'       => 'cs-badge-assigned',
+                                'triaged'        => 'cs-badge-pending',
+                                'reported'       => 'cs-badge-pending',
                                 'consolidated'   => 'cs-badge-in_progress',
                                 'duplicate'      => 'cs-badge-in_progress',
                                 'standalone'     => 'cs-badge-in_progress',
                                 'rejected'       => 'cs-badge-critical',
                                 default          => 'cs-badge-pending'
                             };
-                            $statusLabel = match ($status) {
+                            $statusLabel = match ($effectiveStatus) {
+                                'resolved'       => 'Verified Resolved',
+                                'in_progress'    => 'Field Work In Progress',
+                                'assigned'       => 'Assigned to Officer',
+                                'triaged'        => 'Triage Verified',
+                                'reported'       => 'Reported',
                                 'pending_review' => 'Pending Triage',
                                 'consolidated'   => 'Consolidated',
                                 'duplicate'      => 'Duplicate Merged',
-                                'standalone'     => 'Standalone',
-                                'resolved'       => 'Resolved',
+                                'standalone'     => 'Active Standalone',
                                 'rejected'       => 'Rejected',
-                                default          => ucfirst(str_replace('_', ' ', $status))
+                                default          => ucfirst(str_replace('_', ' ', $effectiveStatus))
                             };
                             ?>
                             <tr>
                                 <td class="font-monospace fw-semibold text-primary">
-                                    <?= htmlspecialchars($report['report_reference']) ?>
+                                    <div><?= htmlspecialchars($report['report_reference']) ?></div>
+                                    <?php if (!empty($report['incident_reference'])): ?>
+                                        <div class="small"><span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size:0.7rem;"><?= htmlspecialchars($report['incident_reference']) ?></span></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="fw-semibold text-dark">
                                     <?= htmlspecialchars($report['title']) ?>

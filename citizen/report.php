@@ -217,10 +217,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->commit();
 
             // Run duplicate incident candidate detection in post-submission
+            $candCount = 0;
             try {
-                DuplicateDetector::processReport($newReportId, null, $pdo);
+                $candCount = DuplicateDetector::processReport($newReportId, null, $pdo);
             } catch (Throwable $e) {
                 @error_log('[Duplicate Detection Error] ' . $e->getMessage());
+            }
+
+            // If no nearby candidate duplicates exist, promote to canonical municipal incident
+            if ($candCount === 0) {
+                try {
+                    IncidentManager::createIncidentFromReport($newReportId, $pdo);
+                } catch (Throwable $e) {
+                    @error_log('[Standalone Incident Auto-Promotion Error] ' . $e->getMessage());
+                }
             }
 
             // Store single-use tracking token in session for display ONCE on success page

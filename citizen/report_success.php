@@ -34,20 +34,45 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                     Your report has been securely registered in the municipal intake ledger under triage review.
                 </p>
 
+                <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+                <style>
+                    /* Suppress browser date-detector and smart-action outlines on report metadata values */
+                    .cs-meta-box .cs-meta-value,
+                    .cs-meta-box .cs-meta-value:focus,
+                    .cs-meta-box .cs-meta-value:active,
+                    .cs-meta-box [data-smart-action],
+                    .cs-meta-box a[href*="calendar"],
+                    .cs-meta-box a[href^="x-apple-data-detectors"] {
+                        outline: none !important;
+                        border: 0 !important;
+                        box-shadow: none !important;
+                        text-decoration: none !important;
+                        color: inherit !important;
+                    }
+                </style>
+
                 <!-- Report Metadata Summary -->
-                <div class="p-3 bg-light rounded-3 border border-light-subtle text-start mb-4 small">
+                <div class="p-3 bg-light rounded-3 border border-light-subtle text-start mb-3 small cs-meta-box">
                     <div class="row g-2">
-                        <div class="col-sm-6">
-                            <span class="text-muted d-block">Public Report Reference:</span>
-                            <span class="fw-bold font-monospace text-primary fs-6"><?= htmlspecialchars($reportInfo['reference']) ?></span>
+                        <div class="col-12 col-md-6">
+                            <span class="text-muted d-block small mb-1">Public Report Reference</span>
+                            <span class="fw-bold font-monospace text-primary text-break d-block">
+                                <?= htmlspecialchars((string) $reportInfo['reference'], ENT_QUOTES, 'UTF-8') ?>
+                            </span>
                         </div>
-                        <div class="col-sm-6">
-                            <span class="text-muted d-block">Submission Time:</span>
-                            <span class="fw-semibold text-dark"><?= htmlspecialchars($reportInfo['created_at']) ?></span>
+                        <div class="col-12 col-md-6">
+                            <span class="text-muted d-block small mb-1">Submission Time</span>
+                            <span class="fw-semibold text-dark text-break d-block cs-meta-value"
+                                style="outline: none !important; border: 0 !important; box-shadow: none !important; -webkit-tap-highlight-color: transparent;"
+                                translate="no">
+                                <?= htmlspecialchars((string) $reportInfo['created_at'], ENT_QUOTES, 'UTF-8') ?>
+                            </span>
                         </div>
-                        <div class="col-12 mt-2 pt-2 border-top">
-                            <span class="text-muted d-block">Incident Title:</span>
-                            <span class="fw-semibold text-dark"><?= htmlspecialchars($reportInfo['title']) ?></span>
+                        <div class="col-12 pt-2 border-top">
+                            <span class="text-muted d-block small mb-1">Incident Title</span>
+                            <span class="fw-semibold text-dark text-break d-block">
+                                <?= htmlspecialchars((string) $reportInfo['title'], ENT_QUOTES, 'UTF-8') ?>
+                            </span>
                         </div>
                     </div>
                 </div>

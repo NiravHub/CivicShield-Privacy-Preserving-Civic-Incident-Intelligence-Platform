@@ -6,6 +6,28 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'a
 require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
 
 $dbHealth = Database::checkHealth();
+
+$publicIncidents = [];
+if ($dbHealth['connected']) {
+    try {
+        $mapRows = AnalyticsManager::getMapIncidents([], 50);
+        foreach ($mapRows as $row) {
+            $publicIncidents[] = [
+                'reference'    => $row['incident_reference'],
+                'title'        => $row['title'],
+                'category'     => strtolower(preg_replace('/[^a-zA-Z0-9]/', '', (string)$row['category_name'])),
+                'neighborhood' => $row['neighborhood'],
+                'severity'     => $row['severity'],
+                'status'       => $row['status'],
+                'lat'          => (float)$row['obfuscated_lat'],
+                'lng'          => (float)$row['obfuscated_lng'],
+                'radius'       => (int)($row['fuzz_radius_meters'] ?? 150)
+            ];
+        }
+    } catch (Throwable $e) {
+        @error_log('[Index Map Live Incidents Error] ' . $e->getMessage());
+    }
+}
 ?>
 
 <!-- ==============================================================================
@@ -329,9 +351,15 @@ $dbHealth = Database::checkHealth();
                 </p>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-secondary-subtle text-dark border px-3 py-2 small">
-                    <i class="bi bi-info-circle me-1"></i> Demonstration Data
-                </span>
+                <?php if (!empty($publicIncidents)): ?>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 small">
+                        <i class="bi bi-broadcast me-1"></i> Live Geo-Obfuscated Feed (<?= count($publicIncidents) ?> Incidents)
+                    </span>
+                <?php else: ?>
+                    <span class="badge bg-secondary-subtle text-dark border px-3 py-2 small">
+                        <i class="bi bi-info-circle me-1"></i> Demonstration Data
+                    </span>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -463,7 +491,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     ];
 
-    CivicMap.renderDemoIncidents(map, demonstrationIncidents);
+    const liveIncidents = <?= !empty($publicIncidents) ? json_encode($publicIncidents, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) : 'null' ?>;
+    CivicMap.renderDemoIncidents(map, (Array.isArray(liveIncidents) && liveIncidents.length > 0) ? liveIncidents : demonstrationIncidents);
 });
 </script>
 

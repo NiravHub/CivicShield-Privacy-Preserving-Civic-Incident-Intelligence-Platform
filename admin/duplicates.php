@@ -141,13 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':id'          => $candidateId
                     ]);
 
-                    // 2. Mark report as standalone
-                    $upReport = $pdo->prepare(
-                        'UPDATE incident_reports 
-                         SET status = \'standalone\'
-                         WHERE id = :report_id'
-                    );
-                    $upReport->execute([':report_id' => $candidate['report_id']]);
+                    // 2. Promote report to standalone canonical incident if not already linked
+                    $promoResult = IncidentManager::createIncidentFromReport((int)$candidate['report_id'], $pdo, $adminUserId);
 
                     // 3. Audit Log entry
                     $auditStmt = $pdo->prepare(
@@ -164,16 +159,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'report_reference'   => $candidate['report_reference'],
                             'incident_id'        => $candidate['candidate_incident_id'],
                             'incident_reference' => $candidate['incident_reference'],
+                            'promoted_incident'  => $promoResult['incident_reference'] ?? null,
                             'notes'              => $decisionNotes
                         ]),
                         ':now'       => $now
                     ]);
 
-                    $flashMessage = sprintf(
-                        'Report %s validated as distinct from Incident %s.',
-                        htmlspecialchars($candidate['report_reference']),
-                        htmlspecialchars($candidate['incident_reference'])
-                    );
+                    if (!empty($promoResult['success']) && !empty($promoResult['incident_reference'])) {
+                        $flashMessage = sprintf(
+                            'Report %s validated as distinct from Incident %s and promoted to Incident %s.',
+                            htmlspecialchars($candidate['report_reference']),
+                            htmlspecialchars($candidate['incident_reference']),
+                            htmlspecialchars($promoResult['incident_reference'])
+                        );
+                    } else {
+                        $flashMessage = sprintf(
+                            'Report %s validated as distinct from Incident %s.',
+                            htmlspecialchars($candidate['report_reference']),
+                            htmlspecialchars($candidate['incident_reference'])
+                        );
+                    }
                 }
 
                 $pdo->commit();

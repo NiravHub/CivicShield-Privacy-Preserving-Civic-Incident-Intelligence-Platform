@@ -301,3 +301,20 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
     CONSTRAINT `fk_audit_actor` FOREIGN KEY (`actor_user_id`) 
         REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 12. LOGIN RATE LIMITS (PERSISTENT ABUSE MITIGATION)
+-- Tracks failed login attempts across sessions to protect against brute-force attacks.
+-- Privacy guarantee: Plaintext passwords are NEVER stored; rate_key is SHA-256 hashed.
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `login_rate_limits` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `rate_key` VARCHAR(64) NOT NULL COMMENT 'SHA-256 hash of throttle identifier (e.g. IP + username)',
+    `ip_address` VARCHAR(45) NOT NULL COMMENT 'Client IPv4 or IPv6 address for source-based abuse mitigation',
+    `username` VARCHAR(60) NULL COMMENT 'Target username (lowercased), or null for IP-only throttling',
+    `attempted_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_rate_key_time` (`rate_key`, `attempted_at`),
+    INDEX `idx_rate_ip_time` (`ip_address`, `attempted_at`),
+    INDEX `idx_rate_attempted_at` (`attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
