@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `incidents` (
     `severity` ENUM('low', 'medium', 'high', 'critical') NOT NULL DEFAULT 'medium',
     `priority_score` INT NOT NULL DEFAULT 0 COMMENT 'Calculated priority score based on severity, report count & civic weight',
     `priority_breakdown` JSON NULL COMMENT 'Rule-based decision-support priority breakdown factors',
-    `status` ENUM('reported', 'triaged', 'assigned', 'in_progress', 'resolved', 'closed', 'rejected') NOT NULL DEFAULT 'reported',
+    `status` ENUM('reported', 'triaged', 'assigned', 'in_progress', 'resolution_submitted', 'resolved', 'closed', 'rejected') NOT NULL DEFAULT 'reported',
     -- Privacy-Preserving Obfuscated Spatial Coordinates
     `obfuscated_lat` DECIMAL(10, 8) NOT NULL COMMENT 'Centroid / differentially perturbed latitude for public map intelligence',
     `obfuscated_lng` DECIMAL(11, 8) NOT NULL COMMENT 'Centroid / differentially perturbed longitude for public map intelligence',
@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS `incident_assignments` (
     `incident_id` BIGINT UNSIGNED NOT NULL,
     `officer_id` BIGINT UNSIGNED NOT NULL,
     `assigned_by_user_id` BIGINT UNSIGNED NOT NULL,
-    `assignment_status` ENUM('assigned', 'acknowledged', 'in_progress', 'escalated', 'reassigned', 'completed', 'cancelled') NOT NULL DEFAULT 'assigned',
+    `assignment_status` ENUM('assigned', 'acknowledged', 'in_progress', 'resolution_submitted', 'escalated', 'reassigned', 'completed', 'cancelled') NOT NULL DEFAULT 'assigned',
     `instructions` TEXT NULL,
     `assigned_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `acknowledged_at` TIMESTAMP NULL,

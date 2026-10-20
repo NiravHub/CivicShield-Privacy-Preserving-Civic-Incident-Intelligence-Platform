@@ -150,6 +150,7 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                         <option value="">All Statuses</option>
                         <option value="assigned" <?= $filterStatus === 'assigned' ? 'selected' : '' ?>>Assigned (New)</option>
                         <option value="in_progress" <?= $filterStatus === 'in_progress' ? 'selected' : '' ?>>In Progress (Remediation)</option>
+                        <option value="resolution_submitted" <?= $filterStatus === 'resolution_submitted' ? 'selected' : '' ?>>Resolution Submitted (Pending Review)</option>
                         <option value="resolved" <?= $filterStatus === 'resolved' ? 'selected' : '' ?>>Resolved</option>
                         <option value="closed" <?= $filterStatus === 'closed' ? 'selected' : '' ?>>Closed</option>
                     </select>

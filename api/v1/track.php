@@ -66,18 +66,33 @@ try {
 
     // Determine current effective public status and description
     $effectiveStatus = $report['status'];
+    $consolidatedStatus = $report['consolidated_status'] ?? null;
+    $consolidatedLabel = match ($consolidatedStatus) {
+        'resolution_submitted' => 'Field Remediation Completed — Pending Verification',
+        'in_progress'          => 'In Progress',
+        'assigned'             => 'Assigned',
+        'resolved'             => 'Resolved',
+        'closed'               => 'Closed',
+        default                => ucfirst(str_replace('_', ' ', (string)$consolidatedStatus))
+    };
+
     $statusLabel = match ($effectiveStatus) {
         'pending_review' => 'Under Triage & Verification',
-        'consolidated'   => 'Consolidated into Active Incident (' . ($report['consolidated_status'] ?? 'Active') . ')',
+        'consolidated'   => 'Consolidated into Active Incident (' . $consolidatedLabel . ')',
         'duplicate'      => 'Verified Duplicate & Consolidated',
         'standalone'     => 'Active Standalone Incident',
         'rejected'       => 'Closed / Rejected by Triage',
         default          => ucfirst(str_replace('_', ' ', $effectiveStatus))
     };
 
-    if (!empty($report['consolidated_status']) && $report['consolidated_status'] === 'resolved') {
+    if ($consolidatedStatus === 'resolved') {
         $statusLabel = 'Verified Resolved';
         $effectiveStatus = 'resolved';
+    } elseif ($consolidatedStatus === 'closed') {
+        $statusLabel = 'Closed (Remediation Complete)';
+        $effectiveStatus = 'closed';
+    } elseif ($consolidatedStatus === 'resolution_submitted') {
+        $statusLabel = 'Field Remediation Completed — Pending Verification';
     }
 
     // Build strictly sanitized public payload (Zero PII, no coordinates, no token hashes)

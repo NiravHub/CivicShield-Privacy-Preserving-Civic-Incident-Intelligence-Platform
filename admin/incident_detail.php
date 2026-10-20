@@ -77,6 +77,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $errors[] = $res['message'];
             }
+        } elseif ($action === 'review_evidence') {
+            $decision = trim((string)($_POST['decision'] ?? ''));
+            $reviewNotes = trim((string)($_POST['review_notes'] ?? ''));
+
+            $res = IncidentManager::reviewResolutionEvidence($incidentId, (int)$adminUserId, $decision, $reviewNotes, $pdo);
+            if ($res['success']) {
+                $_SESSION['_flash_success'] = $res['message'];
+                header('Location: ' . BASE_URL . '/admin/incident_detail.php?id=' . $incidentId);
+                exit;
+            } else {
+                $errors[] = $res['message'];
+            }
         }
     }
 }
@@ -95,6 +107,7 @@ $linkedReports = IncidentManager::getLinkedReports($incidentId, $pdo);
 $statusHistory = IncidentManager::getStatusHistory($incidentId, $pdo);
 $assignmentHistory = IncidentManager::getAssignmentHistory($incidentId, $pdo);
 $officers = IncidentManager::getActiveOfficers($pdo);
+$resolutionEvidence = IncidentManager::getResolutionEvidence($incidentId, $pdo);
 
 $priBreakdown = $incident['priority_breakdown'] ?? [];
 
@@ -202,6 +215,131 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                     <?php endif; ?>
                 </div>
             </div>
+
+            <!-- Resolution Evidence & Verification Dossier Card -->
+            <?php if (!empty($resolutionEvidence) || $incident['status'] === 'resolution_submitted'): ?>
+                <div class="card cs-card shadow-sm border-light-subtle mb-4">
+                    <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                        <h6 class="fw-bold mb-0 text-dark">
+                            <i class="bi bi-camera-fill text-primary me-2"></i>Field Resolution Evidence &amp; Verification Dossier
+                        </h6>
+                        <?php if ($incident['status'] === 'resolution_submitted'): ?>
+                            <span class="badge bg-warning text-dark px-3 py-1">
+                                <i class="bi bi-hourglass-split me-1"></i>Awaiting Admin Verification
+                            </span>
+                        <?php elseif ($incident['status'] === 'resolved' || $incident['status'] === 'closed'): ?>
+                            <span class="badge bg-success px-3 py-1">
+                                <i class="bi bi-check-circle-fill me-1"></i>Evidence Verified
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="card-body p-4">
+                        <?php if (empty($resolutionEvidence)): ?>
+                            <div class="p-3 text-center text-muted small">
+                                No photographic resolution evidence records on file.
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($resolutionEvidence as $idx => $ev): ?>
+                                <div class="<?= $idx > 0 ? 'border-top pt-3 mt-3' : '' ?>">
+                                    <div class="row g-3 align-items-start">
+                                        <div class="col-md-4 text-center">
+                                            <a href="<?= htmlspecialchars(BASE_URL . '/' . $ev['photo_path']) ?>" target="_blank" rel="noopener">
+                                                <img src="<?= htmlspecialchars(BASE_URL . '/' . $ev['photo_path']) ?>" alt="Resolution Evidence Photo" class="img-fluid rounded border shadow-sm" style="max-height: 180px; object-fit: cover;">
+                                            </a>
+                                            <div class="text-muted mt-1" style="font-size:0.72rem;">
+                                                <i class="bi bi-zoom-in me-1"></i>Click to view full image
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
+                                                <div>
+                                                    <span class="badge bg-secondary-subtle text-dark border me-1">
+                                                        Officer: <?= htmlspecialchars($ev['officer_full_name'] ?? $ev['officer_username']) ?>
+                                                    </span>
+                                                    <span class="badge <?= $ev['verification_status'] === 'verified' ? 'bg-success' : ($ev['verification_status'] === 'rework_requested' ? 'bg-warning text-dark' : 'bg-info') ?> text-uppercase" style="font-size:0.68rem;">
+                                                        <?= htmlspecialchars(str_replace('_', ' ', $ev['verification_status'])) ?>
+                                                    </span>
+                                                </div>
+                                                <span class="text-muted small">
+                                                    <?= date('d M Y, h:i A', strtotime((string)$ev['created_at'])) ?>
+                                                </span>
+                                            </div>
+
+                                            <div class="mb-2 small">
+                                                <strong class="text-dark">Field Officer Remediation Notes:</strong>
+                                                <div class="p-2 bg-light rounded text-secondary mt-1">
+                                                    <?= nl2br(htmlspecialchars((string)$ev['evidence_notes'])) ?>
+                                                </div>
+                                            </div>
+
+                                            <?php if (!empty($ev['inspection_lat']) && !empty($ev['inspection_lng'])): ?>
+                                                <div class="mb-2 small text-secondary">
+                                                    <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                                                    <strong>Inspection Coordinates:</strong> <?= htmlspecialchars((string)$ev['inspection_lat']) ?>, <?= htmlspecialchars((string)$ev['inspection_lng']) ?>
+                                                </div>
+                                            <?php endif; ?>
+
+                                            <div class="mb-2 text-muted" style="font-size: 0.72rem;">
+                                                <strong>Cryptographic SHA-256 Digest:</strong>
+                                                <code class="d-block text-break bg-light p-1 rounded mt-1"><?= htmlspecialchars((string)$ev['photo_sha256']) ?></code>
+                                            </div>
+
+                                            <?php if (!empty($ev['verified_at'])): ?>
+                                                <div class="p-2 rounded border <?= $ev['verification_status'] === 'verified' ? 'bg-success-subtle border-success-subtle' : 'bg-warning-subtle border-warning-subtle' ?> small mt-2">
+                                                    <div class="fw-semibold text-dark">
+                                                        <?= $ev['verification_status'] === 'verified' ? 'Verified by' : 'Rework requested by' ?>:
+                                                        <?= htmlspecialchars($ev['verifier_full_name'] ?? $ev['verifier_username'] ?? 'Municipal Admin') ?>
+                                                        <span class="text-muted fw-normal">&bull; <?= date('d M Y, h:i A', strtotime((string)$ev['verified_at'])) ?></span>
+                                                    </div>
+                                                    <?php if (!empty($ev['verification_notes'])): ?>
+                                                        <div class="mt-1 text-dark fst-italic">
+                                                            &ldquo;<?= htmlspecialchars((string)$ev['verification_notes']) ?>&rdquo;
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+
+                        <!-- Verification Action Form (When status is resolution_submitted) -->
+                        <?php if ($incident['status'] === 'resolution_submitted'): ?>
+                            <div class="border-top pt-3 mt-3">
+                                <h6 class="fw-bold text-dark mb-2">
+                                    <i class="bi bi-shield-check text-primary me-1"></i>Administrative Verification Decision
+                                </h6>
+                                <p class="small text-secondary mb-3">
+                                    Inspect the submitted photo proof and field notes above. Approve to transition the incident to <strong>Resolved</strong> and complete the work order, or request rework to send it back to the assigned officer's in-progress queue.
+                                </p>
+                                <form method="POST" action="<?= htmlspecialchars(BASE_URL) ?>/admin/incident_detail.php?id=<?= $incidentId ?>">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Session::getCsrfToken()) ?>">
+                                    <input type="hidden" name="action" value="review_evidence">
+
+                                    <div class="mb-3">
+                                        <label for="reviewNotes" class="form-label small fw-semibold text-dark">
+                                            Verification / Review Notes <span class="text-danger">*</span>
+                                        </label>
+                                        <textarea name="review_notes" id="reviewNotes" class="form-control form-control-sm" rows="3" required minlength="5" 
+                                                  placeholder="Detail your inspection findings, site verification remarks, or instructions for rework..."></textarea>
+                                        <div class="form-text small">Minimum 5 characters required for administrative audit record.</div>
+                                    </div>
+
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" name="decision" value="approve" class="btn btn-success btn-sm fw-bold px-3">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Approve &amp; Mark Resolved
+                                        </button>
+                                        <button type="submit" name="decision" value="request_rework" class="btn btn-warning btn-sm fw-bold text-dark px-3">
+                                            <i class="bi bi-arrow-repeat me-1"></i> Request Rework
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <!-- Interactive Obfuscated Spatial Map -->
             <div class="card cs-card shadow-sm border-light-subtle overflow-hidden mb-4">

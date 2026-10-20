@@ -14,23 +14,25 @@ class IncidentManager
      * Defines strictly valid municipal incident lifecycle paths.
      */
     public const ALLOWED_TRANSITIONS = [
-        'reported'    => ['triaged', 'assigned', 'rejected'],
-        'triaged'     => ['assigned', 'in_progress', 'rejected'],
-        'assigned'    => ['in_progress', 'triaged', 'rejected'],
-        'in_progress' => ['resolved', 'assigned', 'rejected'],
-        'resolved'    => ['closed', 'in_progress'],
-        'closed'      => ['in_progress'],
-        'rejected'    => ['reported', 'triaged']
+        'reported'             => ['triaged', 'assigned', 'rejected'],
+        'triaged'              => ['assigned', 'in_progress', 'rejected'],
+        'assigned'             => ['in_progress', 'triaged', 'rejected'],
+        'in_progress'          => ['resolution_submitted', 'resolved', 'assigned', 'rejected'],
+        'resolution_submitted' => ['resolved', 'in_progress', 'rejected'],
+        'resolved'             => ['closed', 'in_progress'],
+        'closed'               => ['in_progress'],
+        'rejected'             => ['reported', 'triaged']
     ];
 
     /**
      * Allowed State Transitions Matrix for Field Officers
      * Officers may acknowledge/commence field action ('assigned' -> 'in_progress')
-     * and file verified field remediation ('in_progress' -> 'resolved').
+     * and submit verified field remediation evidence ('in_progress' -> 'resolution_submitted').
+     * Direct marking of 'resolved' by officers is prohibited; resolution requires admin verification.
      */
     public const OFFICER_ALLOWED_TRANSITIONS = [
         'assigned'    => ['in_progress'],
-        'in_progress' => ['resolved']
+        'in_progress' => ['resolution_submitted']
     ];
 
     /**
@@ -56,7 +58,7 @@ class IncidentManager
         $params = [];
 
         // 1. Status Filter
-        $validStatuses = ['reported', 'triaged', 'assigned', 'in_progress', 'resolved', 'closed', 'rejected'];
+        $validStatuses = ['reported', 'triaged', 'assigned', 'in_progress', 'resolution_submitted', 'resolved', 'closed', 'rejected'];
         if (!empty($filters['status']) && in_array($filters['status'], $validStatuses, true)) {
             $whereClauses[] = 'i.status = :status';
             $params[':status'] = $filters['status'];
@@ -544,6 +546,14 @@ class IncidentManager
                 ];
             }
 
+            // Officers must submit photo evidence to transition to resolution_submitted
+            if ($newStatus === 'resolution_submitted') {
+                return [
+                    'success' => false,
+                    'message' => "Field officers must submit resolution evidence with photos via the dedicated resolution submission workflow."
+                ];
+            }
+
             // Officers must provide at least 5 chars for all transitions
             if (strlen($cleanReason) < 5) {
                 return [
@@ -561,8 +571,8 @@ class IncidentManager
                 ];
             }
 
-            // Require resolution/closure/rejection justifications
-            if (in_array($newStatus, ['resolved', 'closed', 'rejected'], true)) {
+            // Require resolution/closure/rejection/rework justifications
+            if (in_array($newStatus, ['resolved', 'closed', 'rejected', 'in_progress'], true)) {
                 if (strlen($cleanReason) < 5) {
                     return [
                         'success' => false,
@@ -578,8 +588,21 @@ class IncidentManager
             $pdo->beginTransaction();
         }
         try {
-            $resolvedAtSql = ($newStatus === 'resolved') ? 'NOW()' : (($currentStatus === 'resolved') ? 'NULL' : 'resolved_at');
-            $closedAtSql   = ($newStatus === 'closed') ? 'NOW()' : (($currentStatus === 'closed') ? 'NULL' : 'closed_at');
+            if ($newStatus === 'resolved') {
+                $resolvedAtSql = 'NOW()';
+            } elseif (in_array($newStatus, ['in_progress', 'assigned', 'reported', 'rejected'], true)) {
+                $resolvedAtSql = 'NULL';
+            } else {
+                $resolvedAtSql = 'resolved_at';
+            }
+
+            if ($newStatus === 'closed') {
+                $closedAtSql = 'NOW()';
+            } elseif ($currentStatus === 'closed' && $newStatus !== 'closed') {
+                $closedAtSql = 'NULL';
+            } else {
+                $closedAtSql = 'closed_at';
+            }
 
             $upSql = "UPDATE incidents 
                       SET status = :status,
@@ -601,6 +624,12 @@ class IncidentManager
                          SET assignment_status = 'in_progress', acknowledged_at = COALESCE(acknowledged_at, NOW()), updated_at = NOW()
                          WHERE id = :id"
                     )->execute([':id' => $activeAssignment['id']]);
+                } elseif ($newStatus === 'resolution_submitted') {
+                    $pdo->prepare(
+                        "UPDATE incident_assignments 
+                         SET assignment_status = 'resolution_submitted', updated_at = NOW()
+                         WHERE id = :id"
+                    )->execute([':id' => $activeAssignment['id']]);
                 } elseif ($newStatus === 'resolved') {
                     $pdo->prepare(
                         "UPDATE incident_assignments 
@@ -613,6 +642,13 @@ class IncidentManager
                 $pdo->prepare(
                     "UPDATE incident_assignments 
                      SET assignment_status = 'completed', completed_at = NOW(), updated_at = NOW()
+                     WHERE incident_id = :id AND assignment_status NOT IN ('completed', 'cancelled', 'reassigned')"
+                )->execute([':id' => $incidentId]);
+            } elseif ($newStatus === 'in_progress') {
+                // If admin moved back to in_progress (rework requested), return active assignment to in_progress
+                $pdo->prepare(
+                    "UPDATE incident_assignments 
+                     SET assignment_status = 'in_progress', updated_at = NOW()
                      WHERE incident_id = :id AND assignment_status NOT IN ('completed', 'cancelled', 'reassigned')"
                 )->execute([':id' => $incidentId]);
             }
@@ -693,6 +729,441 @@ class IncidentManager
         ?PDO $pdo = null
     ): array {
         return self::updateStatus($incidentId, $newStatus, $officerId, $reason, $pdo, 'officer');
+    }
+
+    /**
+     * Submit officer resolution evidence with photo attachment, field notes, and optional inspection GPS.
+     * Transitions incident and assignment from 'in_progress' to 'resolution_submitted'.
+     *
+     * @param int        $incidentId    Target incident ID
+     * @param int        $officerId     Authenticated officer user ID
+     * @param array      $file          Uploaded file entry from $_FILES
+     * @param string     $notes         Descriptive field resolution notes (min 10 chars)
+     * @param float|null $inspectionLat Optional field GPS latitude
+     * @param float|null $inspectionLng Optional field GPS longitude
+     * @param PDO|null   $pdo           Active PDO instance
+     * @return array [success => bool, message => string, ?evidence_id => int]
+     */
+    public static function submitResolutionEvidence(
+        int $incidentId,
+        int $officerId,
+        array $file,
+        string $notes,
+        ?float $inspectionLat = null,
+        ?float $inspectionLng = null,
+        ?PDO $pdo = null
+    ): array {
+        if ($pdo === null) {
+            $pdo = Database::getConnection();
+        }
+
+        $cleanNotes = trim($notes);
+        if (strlen($cleanNotes) < 10) {
+            return [
+                'success' => false,
+                'message' => 'Descriptive field resolution notes of at least 10 characters are required.'
+            ];
+        }
+
+        if ($inspectionLat !== null && ($inspectionLat < -90.0 || $inspectionLat > 90.0)) {
+            return ['success' => false, 'message' => 'Invalid inspection latitude.'];
+        }
+        if ($inspectionLng !== null && ($inspectionLng < -180.0 || $inspectionLng > 180.0)) {
+            return ['success' => false, 'message' => 'Invalid inspection longitude.'];
+        }
+
+        $manageTx = !$pdo->inTransaction();
+        if ($manageTx) {
+            $pdo->beginTransaction();
+        }
+
+        try {
+            // 1. Fetch incident with row lock
+            $incStmt = $pdo->prepare('SELECT id, incident_reference, status, category_id FROM incidents WHERE id = :id FOR UPDATE');
+            $incStmt->execute([':id' => $incidentId]);
+            $incident = $incStmt->fetch();
+
+            if (!$incident) {
+                if ($manageTx && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                return ['success' => false, 'message' => 'Incident record not found.'];
+            }
+
+            if ($incident['status'] !== 'in_progress') {
+                if ($manageTx && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                return [
+                    'success' => false,
+                    'message' => "Incident must be 'in_progress' to submit resolution evidence (currently '{$incident['status']}')."
+                ];
+            }
+
+            // 2. Verify active assignment for this officer
+            $assignStmt = $pdo->prepare(
+                "SELECT id, assignment_status 
+                 FROM incident_assignments 
+                 WHERE incident_id = :inc_id AND officer_id = :off_id 
+                   AND assignment_status NOT IN ('completed', 'cancelled', 'reassigned')
+                 ORDER BY id DESC LIMIT 1 FOR UPDATE"
+            );
+            $assignStmt->execute([':inc_id' => $incidentId, ':off_id' => $officerId]);
+            $assignment = $assignStmt->fetch();
+
+            if (!$assignment) {
+                if ($manageTx && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                return [
+                    'success' => false,
+                    'message' => 'This incident is not actively assigned to your officer account.'
+                ];
+            }
+
+            // 3. Process image upload via Uploader
+            $uploadResult = Uploader::processImage($file, 'incidents');
+            if (!$uploadResult['success']) {
+                if ($manageTx && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                return [
+                    'success' => false,
+                    'message' => $uploadResult['error'] ?? 'Image upload failed.'
+                ];
+            }
+            $img = $uploadResult['data'];
+
+            // 4. Record resolution evidence
+            $evStmt = $pdo->prepare(
+                'INSERT INTO resolution_evidence 
+                 (incident_id, assignment_id, officer_id, photo_path, photo_mime, photo_size_bytes, photo_sha256,
+                  evidence_notes, inspection_lat, inspection_lng, verification_status, created_at)
+                 VALUES (:inc_id, :assign_id, :off_id, :path, :mime, :size, :sha, :notes, :lat, :lng, \'pending_review\', NOW())'
+            );
+            $evStmt->execute([
+                ':inc_id'    => $incidentId,
+                ':assign_id' => $assignment['id'],
+                ':off_id'    => $officerId,
+                ':path'      => $img['file_path'],
+                ':mime'      => $img['file_mime'],
+                ':size'      => $img['file_size_bytes'],
+                ':sha'       => $img['sha256_hash'],
+                ':notes'     => $cleanNotes,
+                ':lat'       => $inspectionLat,
+                ':lng'       => $inspectionLng,
+            ]);
+            $evidenceId = (int)$pdo->lastInsertId();
+
+            // 5. Update incident status to resolution_submitted
+            $pdo->prepare(
+                "UPDATE incidents 
+                 SET status = 'resolution_submitted', updated_at = NOW() 
+                 WHERE id = :id"
+            )->execute([':id' => $incidentId]);
+
+            // 6. Update assignment status to resolution_submitted
+            $pdo->prepare(
+                "UPDATE incident_assignments 
+                 SET assignment_status = 'resolution_submitted', updated_at = NOW() 
+                 WHERE id = :id"
+            )->execute([':id' => $assignment['id']]);
+
+            // 7. Status history entry
+            $pdo->prepare(
+                'INSERT INTO incident_status_history 
+                 (incident_id, changed_by_user_id, status_from, status_to, reason, is_public, created_at)
+                 VALUES (:inc_id, :actor_id, \'in_progress\', \'resolution_submitted\', :reason, 1, NOW())'
+            )->execute([
+                ':inc_id'   => $incidentId,
+                ':actor_id' => $officerId,
+                ':reason'   => 'Field remediation completed; resolution evidence submitted for administrative verification. ' . $cleanNotes
+            ]);
+
+            // 8. Audit log entry
+            $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $ipHash = hash('sha256', $clientIp . (string)Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
+            $pdo->prepare(
+                'INSERT INTO audit_logs 
+                 (actor_user_id, actor_role, action, target_type, target_id, ip_hash, metadata_json, created_at)
+                 VALUES (:actor_id, \'officer\', \'RESOLUTION_EVIDENCE_SUBMITTED\', \'incident\', :target_id, :ip_hash, :meta, NOW())'
+            )->execute([
+                ':actor_id'  => $officerId,
+                ':target_id' => $incident['incident_reference'],
+                ':ip_hash'   => $ipHash,
+                ':meta'      => json_encode([
+                    'incident_id'        => $incidentId,
+                    'evidence_id'        => $evidenceId,
+                    'photo_sha256'       => $img['sha256_hash'],
+                    'notes'              => $cleanNotes,
+                    'has_inspection_gps' => ($inspectionLat !== null && $inspectionLng !== null)
+                ])
+            ]);
+
+            // 9. Recalculate priority
+            PriorityScorer::updateIncidentPriority($incidentId, $pdo);
+
+            if ($manageTx) {
+                $pdo->commit();
+            }
+
+            return [
+                'success'     => true,
+                'evidence_id' => $evidenceId,
+                'message'     => 'Resolution evidence submitted successfully. Awaiting administrative verification.'
+            ];
+        } catch (Throwable $e) {
+            if ($manageTx && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            @error_log('[Resolution Evidence Error] ' . $e->getMessage());
+            return ['success' => false, 'message' => 'An error occurred while submitting resolution evidence: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Administratively review and verify or reject/rework resolution evidence.
+     * Approving moves incident to 'resolved' and completes the assignment.
+     * Requesting rework moves incident and assignment back to 'in_progress'.
+     *
+     * @param int      $incidentId  Target incident ID
+     * @param int      $adminUserId Authenticated admin user ID
+     * @param string   $decision    'approve' or 'request_rework'
+     * @param string   $reviewNotes Review feedback / verification notes (min 5 chars)
+     * @param PDO|null $pdo         Active PDO instance
+     * @return array [success => bool, message => string]
+     */
+    public static function reviewResolutionEvidence(
+        int $incidentId,
+        int $adminUserId,
+        string $decision,
+        string $reviewNotes,
+        ?PDO $pdo = null
+    ): array {
+        if ($pdo === null) {
+            $pdo = Database::getConnection();
+        }
+
+        $cleanDecision = trim(strtolower($decision));
+        if (!in_array($cleanDecision, ['approve', 'request_rework'], true)) {
+            return ['success' => false, 'message' => "Invalid review decision. Must be 'approve' or 'request_rework'."];
+        }
+
+        $cleanNotes = trim($reviewNotes);
+        if (strlen($cleanNotes) < 5) {
+            return ['success' => false, 'message' => 'A descriptive verification note of at least 5 characters is required.'];
+        }
+
+        $manageTx = !$pdo->inTransaction();
+        if ($manageTx) {
+            $pdo->beginTransaction();
+        }
+
+        try {
+            // 1. Fetch incident with row lock
+            $incStmt = $pdo->prepare('SELECT id, incident_reference, status, category_id FROM incidents WHERE id = :id FOR UPDATE');
+            $incStmt->execute([':id' => $incidentId]);
+            $incident = $incStmt->fetch();
+
+            if (!$incident) {
+                if ($manageTx && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                return ['success' => false, 'message' => 'Incident record not found.'];
+            }
+
+            if ($incident['status'] !== 'resolution_submitted') {
+                if ($manageTx && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                return [
+                    'success' => false,
+                    'message' => "Incident status must be 'resolution_submitted' to verify evidence (currently '{$incident['status']}')."
+                ];
+            }
+
+            // 2. Fetch pending resolution evidence
+            $evStmt = $pdo->prepare(
+                "SELECT id, photo_path, officer_id 
+                 FROM resolution_evidence 
+                 WHERE incident_id = :id AND verification_status = 'pending_review' 
+                 ORDER BY id DESC LIMIT 1 FOR UPDATE"
+            );
+            $evStmt->execute([':id' => $incidentId]);
+            $evidence = $evStmt->fetch();
+
+            if (!$evidence) {
+                if ($manageTx && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                return ['success' => false, 'message' => 'No pending resolution evidence found to verify.'];
+            }
+
+            $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $ipHash = hash('sha256', $clientIp . (string)Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
+
+            if ($cleanDecision === 'approve') {
+                // Update evidence record
+                $pdo->prepare(
+                    "UPDATE resolution_evidence 
+                     SET verification_status = 'verified', 
+                         verified_by_user_id = :admin_id, 
+                         verification_notes = :notes, 
+                         verified_at = NOW() 
+                     WHERE id = :eid"
+                )->execute([
+                    ':admin_id' => $adminUserId,
+                    ':notes'    => $cleanNotes,
+                    ':eid'      => $evidence['id']
+                ]);
+
+                // Update incident to resolved
+                $pdo->prepare(
+                    "UPDATE incidents 
+                     SET status = 'resolved', resolved_at = NOW(), updated_at = NOW() 
+                     WHERE id = :id"
+                )->execute([':id' => $incidentId]);
+
+                // Complete active assignment
+                $pdo->prepare(
+                    "UPDATE incident_assignments 
+                     SET assignment_status = 'completed', completed_at = NOW(), updated_at = NOW() 
+                     WHERE incident_id = :id AND assignment_status NOT IN ('completed', 'cancelled', 'reassigned')"
+                )->execute([':id' => $incidentId]);
+
+                // Status history
+                $pdo->prepare(
+                    'INSERT INTO incident_status_history 
+                     (incident_id, changed_by_user_id, status_from, status_to, reason, is_public, created_at)
+                     VALUES (:inc_id, :actor_id, \'resolution_submitted\', \'resolved\', :reason, 1, NOW())'
+                )->execute([
+                    ':inc_id'   => $incidentId,
+                    ':actor_id' => $adminUserId,
+                    ':reason'   => 'Resolution evidence verified and approved by municipal administration. ' . $cleanNotes
+                ]);
+
+                // Audit log
+                $pdo->prepare(
+                    'INSERT INTO audit_logs 
+                     (actor_user_id, actor_role, action, target_type, target_id, ip_hash, metadata_json, created_at)
+                     VALUES (:actor_id, \'admin\', \'RESOLUTION_EVIDENCE_APPROVED\', \'incident\', :target_id, :ip_hash, :meta, NOW())'
+                )->execute([
+                    ':actor_id'  => $adminUserId,
+                    ':target_id' => $incident['incident_reference'],
+                    ':ip_hash'   => $ipHash,
+                    ':meta'      => json_encode([
+                        'incident_id' => $incidentId,
+                        'evidence_id' => $evidence['id'],
+                        'decision'    => 'approved',
+                        'notes'       => $cleanNotes
+                    ])
+                ]);
+
+                $successMsg = 'Resolution evidence verified and approved. Incident is now marked as Resolved.';
+            } else {
+                // request_rework
+                $pdo->prepare(
+                    "UPDATE resolution_evidence 
+                     SET verification_status = 'rework_requested', 
+                         verified_by_user_id = :admin_id, 
+                         verification_notes = :notes, 
+                         verified_at = NOW() 
+                     WHERE id = :eid"
+                )->execute([
+                    ':admin_id' => $adminUserId,
+                    ':notes'    => $cleanNotes,
+                    ':eid'      => $evidence['id']
+                ]);
+
+                // Update incident back to in_progress
+                $pdo->prepare(
+                    "UPDATE incidents 
+                     SET status = 'in_progress', updated_at = NOW() 
+                     WHERE id = :id"
+                )->execute([':id' => $incidentId]);
+
+                // Reopen assignment to in_progress
+                $pdo->prepare(
+                    "UPDATE incident_assignments 
+                     SET assignment_status = 'in_progress', updated_at = NOW() 
+                     WHERE incident_id = :id AND assignment_status NOT IN ('completed', 'cancelled', 'reassigned')"
+                )->execute([':id' => $incidentId]);
+
+                // Status history
+                $pdo->prepare(
+                    'INSERT INTO incident_status_history 
+                     (incident_id, changed_by_user_id, status_from, status_to, reason, is_public, created_at)
+                     VALUES (:inc_id, :actor_id, \'resolution_submitted\', \'in_progress\', :reason, 1, NOW())'
+                )->execute([
+                    ':inc_id'   => $incidentId,
+                    ':actor_id' => $adminUserId,
+                    ':reason'   => 'Rework requested on resolution evidence: ' . $cleanNotes
+                ]);
+
+                // Audit log
+                $pdo->prepare(
+                    'INSERT INTO audit_logs 
+                     (actor_user_id, actor_role, action, target_type, target_id, ip_hash, metadata_json, created_at)
+                     VALUES (:actor_id, \'admin\', \'RESOLUTION_EVIDENCE_REWORK_REQUESTED\', \'incident\', :target_id, :ip_hash, :meta, NOW())'
+                )->execute([
+                    ':actor_id'  => $adminUserId,
+                    ':target_id' => $incident['incident_reference'],
+                    ':ip_hash'   => $ipHash,
+                    ':meta'      => json_encode([
+                        'incident_id' => $incidentId,
+                        'evidence_id' => $evidence['id'],
+                        'decision'    => 'rework_requested',
+                        'notes'       => $cleanNotes
+                    ])
+                ]);
+
+                $successMsg = 'Rework requested. Incident returned to in-progress queue for field officer remediation.';
+            }
+
+            // Recalculate priority
+            PriorityScorer::updateIncidentPriority($incidentId, $pdo);
+
+            if ($manageTx) {
+                $pdo->commit();
+            }
+
+            return ['success' => true, 'message' => $successMsg];
+        } catch (Throwable $e) {
+            if ($manageTx && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            @error_log('[Resolution Review Error] ' . $e->getMessage());
+            return ['success' => false, 'message' => 'An error occurred while reviewing resolution evidence: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Retrieve all resolution evidence records for an incident.
+     *
+     * @param int      $incidentId
+     * @param PDO|null $pdo
+     * @return array
+     */
+    public static function getResolutionEvidence(int $incidentId, ?PDO $pdo = null): array
+    {
+        if ($pdo === null) {
+            $pdo = Database::getConnection();
+        }
+
+        $stmt = $pdo->prepare(
+            "SELECT re.*, 
+                    u_off.username AS officer_username,
+                    u_off.full_name AS officer_full_name,
+                    u_adm.username AS verifier_username,
+                    u_adm.full_name AS verifier_full_name
+             FROM resolution_evidence re
+             JOIN users u_off ON u_off.id = re.officer_id
+             LEFT JOIN users u_adm ON u_adm.id = re.verified_by_user_id
+             WHERE re.incident_id = :inc_id
+             ORDER BY re.id DESC"
+        );
+        $stmt->execute([':inc_id' => $incidentId]);
+        return $stmt->fetchAll();
     }
 
     /**
@@ -798,7 +1269,7 @@ class IncidentManager
         }
 
         // Status filter
-        $validStatuses = ['reported', 'triaged', 'assigned', 'in_progress', 'resolved', 'closed', 'rejected'];
+        $validStatuses = ['reported', 'triaged', 'assigned', 'in_progress', 'resolution_submitted', 'resolved', 'closed', 'rejected'];
         if (!empty($filters['status']) && in_array($filters['status'], $validStatuses, true)) {
             $whereClauses[] = 'i.status = :status';
             $params[':status'] = $filters['status'];

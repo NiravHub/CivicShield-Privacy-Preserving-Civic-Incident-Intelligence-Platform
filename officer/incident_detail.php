@@ -73,6 +73,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         header('Location: ' . BASE_URL . '/officer/incident_detail.php?id=' . $incidentId);
         exit;
+    } elseif ($action === 'submit_evidence') {
+        $notes = trim((string)($_POST['notes'] ?? ''));
+        $file  = $_FILES['resolution_photo'] ?? null;
+        $lat   = (isset($_POST['inspection_lat']) && $_POST['inspection_lat'] !== '' && is_numeric($_POST['inspection_lat'])) ? (float)$_POST['inspection_lat'] : null;
+        $lng   = (isset($_POST['inspection_lng']) && $_POST['inspection_lng'] !== '' && is_numeric($_POST['inspection_lng'])) ? (float)$_POST['inspection_lng'] : null;
+
+        if (!$file || !isset($file['error']) || $file['error'] === UPLOAD_ERR_NO_FILE) {
+            Session::setFlash('error', 'Please select a photo of the completed remediation to upload as evidence.');
+            header('Location: ' . BASE_URL . '/officer/incident_detail.php?id=' . $incidentId);
+            exit;
+        }
+
+        $result = IncidentManager::submitResolutionEvidence($incidentId, $officerId, $file, $notes, $lat, $lng, $pdo);
+        if ($result['success']) {
+            Session::setFlash('success', $result['message']);
+        } else {
+            Session::setFlash('error', $result['message']);
+        }
+
+        header('Location: ' . BASE_URL . '/officer/incident_detail.php?id=' . $incidentId);
+        exit;
     }
 }
 
@@ -81,6 +102,9 @@ $linkedReports = IncidentManager::getLinkedReports($incidentId, $pdo, false);
 
 // Fetch status lifecycle history
 $statusHistory = IncidentManager::getStatusHistory($incidentId, $pdo);
+
+// Fetch resolution evidence records
+$resolutionEvidence = IncidentManager::getResolutionEvidence($incidentId, $pdo);
 
 $assignment = $incident['current_assignment'];
 $isActiveAssignment = $incident['is_active_assignment'];
@@ -194,35 +218,107 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                             </button>
                         </form>
                     <?php elseif ($incident['status'] === 'in_progress'): ?>
-                        <div class="alert alert-info py-2 mb-3 small d-flex align-items-center gap-2">
-                            <i class="bi bi-info-circle-fill fs-5"></i>
-                            <div>
-                                Field work is actively underway. When on-site repairs are completed and verified, submit resolution details below.
+                        <?php 
+                        $latestEvidence = !empty($resolutionEvidence) ? $resolutionEvidence[0] : null;
+                        if ($latestEvidence && $latestEvidence['verification_status'] === 'rework_requested'): 
+                        ?>
+                            <div class="alert alert-warning py-2 mb-3 small">
+                                <div class="fw-bold mb-1"><i class="bi bi-exclamation-circle-fill me-1"></i> Rework Requested by Municipal Administration</div>
+                                <div class="fst-italic">&ldquo;<?= htmlspecialchars((string)$latestEvidence['verification_notes']) ?>&rdquo;</div>
+                                <div class="text-muted mt-1" style="font-size:0.75rem;">Reviewed by <?= htmlspecialchars($latestEvidence['verifier_username'] ?? 'Admin') ?> on <?= date('d M Y, h:i A', strtotime((string)$latestEvidence['verified_at'])) ?></div>
                             </div>
-                        </div>
-                        <form method="POST" action="<?= htmlspecialchars(BASE_URL) ?>/officer/incident_detail.php?id=<?= $incidentId ?>">
+                        <?php else: ?>
+                            <div class="alert alert-info py-2 mb-3 small d-flex align-items-center gap-2">
+                                <i class="bi bi-info-circle-fill fs-5"></i>
+                                <div>
+                                    Field remediation is in progress. Complete on-site repairs, capture photo proof, and submit resolution evidence below for administrative verification.
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <form method="POST" action="<?= htmlspecialchars(BASE_URL) ?>/officer/incident_detail.php?id=<?= $incidentId ?>" enctype="multipart/form-data">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Session::getCsrfToken()) ?>">
-                            <input type="hidden" name="form_action" value="update_status">
-                            <input type="hidden" name="new_status" value="resolved">
+                            <input type="hidden" name="form_action" value="submit_evidence">
 
                             <div class="mb-3">
-                                <label for="resolvedNotes" class="form-label fw-semibold small">Resolution Summary &amp; Completion Notes <span class="text-danger">*</span></label>
-                                <textarea class="form-control" id="resolvedNotes" name="notes" rows="4" required minlength="5" placeholder="e.g. Asphalt patching completed using cold-mix bituminous compound; roadway reopened to two-wheeler and four-wheeler traffic..."></textarea>
-                                <div class="form-text small">Detail the physical materials used, repairs conducted, and current site condition. Minimum 5 characters required.</div>
+                                <label for="resolutionPhoto" class="form-label fw-semibold small">Remediation Proof Photo <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control" id="resolutionPhoto" name="resolution_photo" accept="image/jpeg,image/png,image/webp" required>
+                                <div class="form-text small">Accepted formats: JPEG, PNG, WebP &bull; Max 5MB. Sensitive EXIF metadata will be scrubbed automatically.</div>
                             </div>
-                            <button type="submit" class="btn btn-success fw-bold px-4">
-                                <i class="bi bi-check-circle-fill me-1"></i> Mark Incident Resolved
+
+                            <div class="mb-3">
+                                <label for="resolvedNotes" class="form-label fw-semibold small">Remediation Summary &amp; Completion Notes <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="resolvedNotes" name="notes" rows="4" required minlength="10" placeholder="e.g. Asphalt patching completed using cold-mix bituminous compound; compacted and smoothed; roadway reopened to traffic..."></textarea>
+                                <div class="form-text small">Detail the physical materials used, repairs conducted, and current site condition. Minimum 10 characters required.</div>
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-sm-6">
+                                    <label for="inspectionLat" class="form-label small text-muted">Inspection GPS Lat (Optional)</label>
+                                    <input type="number" step="any" class="form-control form-control-sm" id="inspectionLat" name="inspection_lat" placeholder="e.g. 21.170240">
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="inspectionLng" class="form-label small text-muted">Inspection GPS Lng (Optional)</label>
+                                    <input type="number" step="any" class="form-control form-control-sm" id="inspectionLng" name="inspection_lng" placeholder="e.g. 72.831060">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary fw-bold px-4">
+                                <i class="bi bi-camera-fill me-1"></i> Submit Resolution Evidence for Verification
                             </button>
                         </form>
+                    <?php elseif ($incident['status'] === 'resolution_submitted'): ?>
+                        <div class="p-4 bg-light rounded border border-info">
+                            <div class="d-flex align-items-center gap-2 mb-2 text-info">
+                                <i class="bi bi-hourglass-split fs-3"></i>
+                                <h5 class="fw-bold mb-0 text-dark">Resolution Evidence Submitted</h5>
+                            </div>
+                            <p class="small text-secondary mb-3">
+                                You have submitted photographic evidence and remediation notes. The incident is currently awaiting administrative inspection and verification.
+                            </p>
+                            <?php if (!empty($resolutionEvidence)): ?>
+                                <?php $latestEv = $resolutionEvidence[0]; ?>
+                                <div class="card p-3 bg-white border small shadow-sm">
+                                    <div class="row g-3 align-items-center">
+                                        <div class="col-md-4 text-center">
+                                            <a href="<?= htmlspecialchars(BASE_URL . '/' . $latestEv['photo_path']) ?>" target="_blank" rel="noopener">
+                                                <img src="<?= htmlspecialchars(BASE_URL . '/' . $latestEv['photo_path']) ?>" alt="Evidence Photo" class="img-fluid rounded border" style="max-height: 150px; object-fit: cover;">
+                                            </a>
+                                            <div class="text-muted mt-1" style="font-size:0.7rem;"><i class="bi bi-zoom-in me-1"></i>Click to view full image</div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="badge bg-info-subtle text-info border border-info text-uppercase">Pending Verification</span>
+                                                <span class="text-muted"><?= date('d M Y, h:i A', strtotime((string)$latestEv['created_at'])) ?></span>
+                                            </div>
+                                            <div class="mb-2 text-dark">
+                                                <strong>Remediation Notes:</strong><br>
+                                                <?= nl2br(htmlspecialchars((string)$latestEv['evidence_notes'])) ?>
+                                            </div>
+                                            <?php if (!empty($latestEv['inspection_lat']) && !empty($latestEv['inspection_lng'])): ?>
+                                                <div class="mb-2 text-secondary" style="font-size:0.75rem;">
+                                                    <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                                                    Inspection GPS: <?= htmlspecialchars((string)$latestEv['inspection_lat']) ?>, <?= htmlspecialchars((string)$latestEv['inspection_lng']) ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div class="text-muted" style="font-size: 0.7rem;">
+                                                <strong>Photo Hash (SHA-256):</strong>
+                                                <code class="d-block text-break mt-1 bg-light p-1 rounded"><?= htmlspecialchars((string)$latestEv['photo_sha256']) ?></code>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     <?php elseif ($incident['status'] === 'resolved'): ?>
                         <div class="p-4 text-center bg-light rounded border border-success">
                             <i class="bi bi-check-circle-fill text-success fs-1 d-block mb-2"></i>
-                            <h5 class="fw-bold text-dark">Field Remediation Resolved</h5>
+                            <h5 class="fw-bold text-dark">Field Remediation Verified &amp; Resolved</h5>
                             <p class="small text-secondary mb-2">
-                                You marked this incident resolved on <?= !empty($incident['resolved_at']) ? date('M d, Y \a\t H:i', strtotime($incident['resolved_at'])) : 'recently' ?>.
+                                Remediation work has been verified and marked resolved on <?= !empty($incident['resolved_at']) ? date('M d, Y \a\t H:i', strtotime($incident['resolved_at'])) : 'record' ?>.
                             </p>
                             <span class="badge bg-success-subtle text-success border border-success px-3 py-1 small">
-                                Awaiting Central Command Verification &amp; Formal Closure
+                                Awaiting Central Command Formal Closure
                             </span>
                         </div>
                     <?php elseif ($incident['status'] === 'closed'): ?>

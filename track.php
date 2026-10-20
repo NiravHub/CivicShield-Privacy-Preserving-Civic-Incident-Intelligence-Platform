@@ -93,21 +93,25 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
 
                 <?php if ($reportData): ?>
                     <?php
-                    $status = $reportData['status'];
-                    $badgeClass = match ($status) {
-                        'resolved'   => 'cs-badge-resolved',
-                        'in_progress'=> 'cs-badge-in_progress',
-                        'assigned'   => 'cs-badge-assigned',
-                        'duplicate'  => 'cs-badge-assigned',
-                        default      => 'cs-badge-pending'
+                    $rawStatus = !empty($reportData['consolidated_status']) ? $reportData['consolidated_status'] : $reportData['status'];
+                    $badgeClass = match ($rawStatus) {
+                        'resolved'             => 'cs-badge-resolved',
+                        'closed'               => 'cs-badge-resolved',
+                        'resolution_submitted' => 'cs-badge-in_progress',
+                        'in_progress'          => 'cs-badge-in_progress',
+                        'assigned'             => 'cs-badge-assigned',
+                        'duplicate'            => 'cs-badge-assigned',
+                        default                => 'cs-badge-pending'
                     };
-                    $statusTitle = match ($status) {
-                        'resolved'       => 'Verified Resolved',
-                        'in_progress'    => 'In Progress (Active Work Order)',
-                        'assigned'       => 'Assigned to Municipal Department',
-                        'duplicate'      => 'Verified Duplicate & Consolidated',
-                        'pending_review' => 'Pending Triage Review',
-                        default          => ucfirst(str_replace('_', ' ', $status))
+                    $statusTitle = match ($rawStatus) {
+                        'resolved'             => 'Verified Resolved',
+                        'closed'               => 'Closed (Remediation Complete)',
+                        'resolution_submitted' => 'Field Remediation Completed — Pending Verification',
+                        'in_progress'          => 'In Progress (Active Work Order)',
+                        'assigned'             => 'Assigned to Municipal Department',
+                        'duplicate'            => 'Verified Duplicate & Consolidated',
+                        'pending_review'       => 'Pending Triage Review',
+                        default                => ucfirst(str_replace('_', ' ', $rawStatus))
                     };
                     ?>
                     <div class="card border border-info-subtle bg-light-subtle p-4 rounded-3 shadow-sm">

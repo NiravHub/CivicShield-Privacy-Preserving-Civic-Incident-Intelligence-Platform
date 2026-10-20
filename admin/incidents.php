@@ -134,13 +134,14 @@ $officers = IncidentManager::getActiveOfficers($pdo);
 
 // Summary Metrics for Header Cards
 $statusTotals = [
-    'reported'    => 0,
-    'triaged'     => 0,
-    'assigned'    => 0,
-    'in_progress' => 0,
-    'resolved'    => 0,
-    'closed'      => 0,
-    'total'       => 0
+    'reported'             => 0,
+    'triaged'              => 0,
+    'assigned'             => 0,
+    'in_progress'          => 0,
+    'resolution_submitted' => 0,
+    'resolved'             => 0,
+    'closed'               => 0,
+    'total'                => 0
 ];
 $statStmt = $pdo->query('SELECT status, COUNT(*) as cnt FROM incidents GROUP BY status');
 while ($row = $statStmt->fetch()) {
@@ -323,6 +324,7 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                     <option value="triaged" <?= $filters['status'] === 'triaged' ? 'selected' : '' ?>>Triaged</option>
                     <option value="assigned" <?= $filters['status'] === 'assigned' ? 'selected' : '' ?>>Assigned</option>
                     <option value="in_progress" <?= $filters['status'] === 'in_progress' ? 'selected' : '' ?>>In Progress</option>
+                    <option value="resolution_submitted" <?= $filters['status'] === 'resolution_submitted' ? 'selected' : '' ?>>Resolution Submitted</option>
                     <option value="resolved" <?= $filters['status'] === 'resolved' ? 'selected' : '' ?>>Resolved</option>
                     <option value="closed" <?= $filters['status'] === 'closed' ? 'selected' : '' ?>>Closed</option>
                     <option value="rejected" <?= $filters['status'] === 'rejected' ? 'selected' : '' ?>>Rejected</option>

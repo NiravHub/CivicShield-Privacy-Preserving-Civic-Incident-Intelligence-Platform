@@ -17,8 +17,9 @@ class AnalyticsManager
         'reported'    => ['label' => 'Reported (New)',       'color' => '#6c757d', 'bg' => 'bg-secondary'],
         'triaged'     => ['label' => 'Triaged / Validated',   'color' => '#0d6efd', 'bg' => 'bg-primary'],
         'assigned'    => ['label' => 'Assigned (Dispatched)', 'color' => '#dc3545', 'bg' => 'bg-danger'],
-        'in_progress' => ['label' => 'In Progress (Active)',  'color' => '#ffc107', 'bg' => 'bg-warning'],
-        'resolved'    => ['label' => 'Resolved (Remediated)', 'color' => '#198754', 'bg' => 'bg-success'],
+        'in_progress'          => ['label' => 'In Progress (Active)',  'color' => '#ffc107', 'bg' => 'bg-warning'],
+        'resolution_submitted' => ['label' => 'Resolution Submitted', 'color' => '#0dcaf0', 'bg' => 'bg-info'],
+        'resolved'             => ['label' => 'Resolved (Remediated)', 'color' => '#198754', 'bg' => 'bg-success'],
         'closed'      => ['label' => 'Closed (Verified)',     'color' => '#212529', 'bg' => 'bg-dark'],
         'rejected'    => ['label' => 'Rejected / Out of Scope','color' => '#adb5bd', 'bg' => 'bg-light']
     ];

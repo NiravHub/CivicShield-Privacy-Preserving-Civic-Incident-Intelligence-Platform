@@ -292,25 +292,84 @@ runTest("7. Valid officer status transitions succeed", function() use ($pdo) {
             return "Assignment was not updated to in_progress with acknowledged_at";
         }
 
-        // 2. Transition 'in_progress' -> 'resolved'
-        $res2 = IncidentManager::updateOfficerStatus($incId, 'resolved', $officerId, 'Crater patched with cold-mix asphalt; surface smoothed and road reopened', $pdo);
-        if (!$res2['success']) {
+        // 2. Direct attempt to transition 'in_progress' -> 'resolved' must be rejected (no officer bypass)
+        $bypassAttempt = IncidentManager::updateOfficerStatus($incId, 'resolved', $officerId, 'Attempting direct resolve', $pdo);
+        if ($bypassAttempt['success']) {
             $pdo->rollBack();
-            return "in_progress -> resolved failed: " . $res2['message'];
+            return "Officer direct resolve without evidence should be rejected";
         }
 
-        $chkInc2 = $pdo->prepare("SELECT status, resolved_at FROM incidents WHERE id = :id");
+        // 3. Officer submits resolution evidence
+        $tmpFile = tempnam(sys_get_temp_dir(), 'cs_ev_');
+        $im = imagecreatetruecolor(60, 60);
+        $col = imagecolorallocate($im, 40, 167, 69);
+        imagefill($im, 0, 0, $col);
+        imagepng($im, $tmpFile);
+        imagedestroy($im);
+
+        $testFile = [
+            'name'     => 'remediation_proof.png',
+            'type'     => 'image/png',
+            'tmp_name' => $tmpFile,
+            'error'    => UPLOAD_ERR_OK,
+            'size'     => filesize($tmpFile)
+        ];
+
+        $res2 = IncidentManager::submitResolutionEvidence(
+            $incId,
+            $officerId,
+            $testFile,
+            'Crater patched with cold-mix asphalt; surface smoothed and road reopened',
+            21.145820,
+            72.775410,
+            $pdo
+        );
+        @unlink($tmpFile);
+
+        if (!$res2['success']) {
+            $pdo->rollBack();
+            return "submitResolutionEvidence failed: " . $res2['message'];
+        }
+
+        $chkInc2 = $pdo->prepare("SELECT status FROM incidents WHERE id = :id");
         $chkInc2->execute([':id' => $incId]);
-        $incRow2 = $chkInc2->fetch();
-        if ($incRow2['status'] !== 'resolved' || empty($incRow2['resolved_at'])) {
+        if ($chkInc2->fetchColumn() !== 'resolution_submitted') {
+            $pdo->rollBack();
+            return "Incident status was not updated to resolution_submitted";
+        }
+
+        $chkAssign2 = $pdo->prepare("SELECT assignment_status FROM incident_assignments WHERE id = :id");
+        $chkAssign2->execute([':id' => $assignId]);
+        if ($chkAssign2->fetchColumn() !== 'resolution_submitted') {
+            $pdo->rollBack();
+            return "Assignment was not marked resolution_submitted";
+        }
+
+        // 4. Admin reviews and approves resolution evidence
+        $res3 = IncidentManager::reviewResolutionEvidence(
+            $incId,
+            $adminId,
+            'approve',
+            'Field photo confirms crater filled and compacted to municipal grade.',
+            $pdo
+        );
+        if (!$res3['success']) {
+            $pdo->rollBack();
+            return "reviewResolutionEvidence failed: " . $res3['message'];
+        }
+
+        $chkInc3 = $pdo->prepare("SELECT status, resolved_at FROM incidents WHERE id = :id");
+        $chkInc3->execute([':id' => $incId]);
+        $incRow3 = $chkInc3->fetch();
+        if ($incRow3['status'] !== 'resolved' || empty($incRow3['resolved_at'])) {
             $pdo->rollBack();
             return "Incident status was not updated to resolved with resolved_at";
         }
 
-        $chkAssign2 = $pdo->prepare("SELECT assignment_status, completed_at FROM incident_assignments WHERE id = :id");
-        $chkAssign2->execute([':id' => $assignId]);
-        $assignRow2 = $chkAssign2->fetch();
-        if ($assignRow2['assignment_status'] !== 'completed' || empty($assignRow2['completed_at'])) {
+        $chkAssign3 = $pdo->prepare("SELECT assignment_status, completed_at FROM incident_assignments WHERE id = :id");
+        $chkAssign3->execute([':id' => $assignId]);
+        $assignRow3 = $chkAssign3->fetch();
+        if ($assignRow3['assignment_status'] !== 'completed' || empty($assignRow3['completed_at'])) {
             $pdo->rollBack();
             return "Assignment was not marked completed with completed_at";
         }

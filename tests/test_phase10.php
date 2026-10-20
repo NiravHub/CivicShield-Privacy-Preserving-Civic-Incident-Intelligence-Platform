@@ -42,7 +42,7 @@ try {
     exit(1);
 }
 
-$canonicalStatuses = ['reported', 'triaged', 'assigned', 'in_progress', 'resolved', 'closed', 'rejected'];
+$canonicalStatuses = ['reported', 'triaged', 'assigned', 'in_progress', 'resolution_submitted', 'resolved', 'closed', 'rejected'];
 
 // -----------------------------------------------------------------------------
 // 1. Status vocabulary is consistent across schema, managers, and analytics
