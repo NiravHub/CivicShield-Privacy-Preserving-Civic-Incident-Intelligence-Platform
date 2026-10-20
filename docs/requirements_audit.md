@@ -38,10 +38,11 @@ All seven automated test suites were **actively rerun live** during this audit u
 & "C:\xampp\php\php.exe" tests/test_phase10.php                  # Output: 13 Passed, 0 Failed
 & "C:\xampp\php\php.exe" tests/test_login_rate_limit.php          # Output: 10 Passed, 0 Failed
 & "C:\xampp\php\php.exe" tests/test_distinct_report_promotion.php # Output: 10 Passed, 0 Failed
+& "C:\xampp\php\php.exe" tests/test_resolution_evidence_workflow.php # Output: 8 Passed, 0 Failed
 ```
 
-* **Automated Test Results:** **87 passed, 0 failed (100% of automated test assertions).**
-* **Syntax Validation:** All 40 project PHP files were validated with `php -l` (**0 syntax errors**).
+* **Automated Test Results:** **95 passed, 0 failed (100% of automated test assertions across 8 suites).**
+* **Syntax Validation:** All project PHP files validated with `php -l` (**0 syntax errors**).
 
 ### 2.2. Review of `docs/security_test_report.md`
 `docs/security_test_report.md` documents 10 manual security checks (Authentication, RBAC, IDOR, SQLi, XSS, CSRF, File Upload, Session Security, Input Validation, Abuse/Rate Limiting).
@@ -155,7 +156,7 @@ All seven automated test suites were **actively rerun live** during this audit u
 
 | # | Checkpoint | Relevant Source & Test Files | Evidence Found | Verification Method | Status |
 | :-: | :--- | :--- | :--- | :--- | :-: |
-| **P10.1** | Status vocabulary consistent across schema, managers, analytics | `core/IncidentManager.php`, `core/AnalyticsManager.php`, `database/schema.sql`, `tests/test_phase10.php` | Canonical statuses strictly aligned: `reported`, `triaged`, `assigned`, `in_progress`, `resolved`, `closed`, `rejected`. | Automated test (rerun live) | **PASS** |
+| **P10.1** | Status vocabulary consistent across schema, managers, analytics | `core/IncidentManager.php`, `core/AnalyticsManager.php`, `database/schema.sql`, `tests/test_phase10.php` | Canonical statuses strictly aligned across schema ENUMs, `ALLOWED_TRANSITIONS`, and `STATUS_METADATA`: `reported`, `triaged`, `assigned`, `in_progress`, `resolution_submitted`, `resolved`, `closed`, `rejected`. | Automated test (rerun live) | **PASS** |
 | **P10.2** | Active assignment queries exclude reassigned work orders | `core/IncidentManager.php` (`getIncidentDetails`), `tests/test_phase10.php` | Joins active assignment where `assignment_status = 'assigned'`. | Automated test (rerun live) | **PASS** |
 | **P10.3** | Officer linked reports omit restricted raw intake coordinates | `core/IncidentManager.php` (`getLinkedReports`), `tests/test_phase10.php` | Strips `raw_lat`, `raw_lng`, and `citizen_contacts` from officer payloads. | Automated test (rerun live) | **PASS** |
 | **P10.4** | Analytics map payload free of contact enclave and raw GPS | `core/AnalyticsManager.php` (`getMapIncidents`), `tests/test_phase10.php` | Verifies absence of forbidden PII and raw coordinates in map feed. | Automated test (rerun live) | **PASS** |
