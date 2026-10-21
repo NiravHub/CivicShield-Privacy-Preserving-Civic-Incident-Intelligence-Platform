@@ -17,7 +17,7 @@ class IncidentManager
         'reported'             => ['triaged', 'assigned', 'rejected'],
         'triaged'              => ['assigned', 'in_progress', 'rejected'],
         'assigned'             => ['in_progress', 'triaged', 'rejected'],
-        'in_progress'          => ['resolution_submitted', 'resolved', 'assigned', 'rejected'],
+        'in_progress'          => ['resolution_submitted', 'assigned', 'rejected'],
         'resolution_submitted' => ['resolved', 'in_progress', 'rejected'],
         'resolved'             => ['closed', 'in_progress'],
         'closed'               => ['in_progress'],
@@ -638,6 +638,11 @@ class IncidentManager
                     )->execute([':id' => $activeAssignment['id']]);
                 }
             } elseif (in_array($newStatus, ['resolved', 'closed'], true)) {
+            // Enforce that resolution can only be marked 'resolved' after evidence has been verified
+            if ($newStatus === 'resolved' && $currentStatus !== 'resolution_submitted') {
+                return ['success' => false, 'message' => "Incident can only be marked 'resolved' after evidence has been submitted and approved (current status: '{$currentStatus}')."];
+            }
+
                 // If admin marked resolved or closed, complete any open officer assignment
                 $pdo->prepare(
                     "UPDATE incident_assignments 

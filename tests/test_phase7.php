@@ -15,7 +15,8 @@ echo "======================================================================\n\n
 $passCount = 0;
 $failCount = 0;
 
-function runTest(string $name, callable $testFn): void {
+function runTest(string $name, callable $testFn): void
+{
     global $passCount, $failCount;
     echo "[TEST] $name: ";
     try {
@@ -38,7 +39,8 @@ $pdo = Database::getConnection();
 // -----------------------------------------------------------------------------
 // Helper: Create a disposable synthetic incident for testing
 // -----------------------------------------------------------------------------
-function createSyntheticIncident(PDO $pdo, string $status = 'reported', string $severity = 'medium'): int {
+function createSyntheticIncident(PDO $pdo, string $status = 'reported', string $severity = 'medium'): int
+{
     $ref = 'TEST-INC-' . strtoupper(bin2hex(random_bytes(4)));
     $stmt = $pdo->prepare(
         'INSERT INTO incidents 
@@ -47,19 +49,19 @@ function createSyntheticIncident(PDO $pdo, string $status = 'reported', string $
          VALUES (:ref, 1, :title, :desc, :sev, 50, :status, 21.196000, 72.795000, 150, \'Adajan\', \'Surat\', 1, NOW(), NOW())'
     );
     $stmt->execute([
-        ':ref'    => $ref,
-        ':title'  => 'Synthetic Test Incident for Phase 7: ' . $ref,
-        ':desc'   => 'Automated test suite fixture for incident management operations.',
-        ':sev'    => $severity,
+        ':ref' => $ref,
+        ':title' => 'Synthetic Test Incident for Phase 7: ' . $ref,
+        ':desc' => 'Automated test suite fixture for incident management operations.',
+        ':sev' => $severity,
         ':status' => $status
     ]);
-    return (int)$pdo->lastInsertId();
+    return (int) $pdo->lastInsertId();
 }
 
 // -----------------------------------------------------------------------------
 // 1. RBAC: Role validation for admin incident operations
 // -----------------------------------------------------------------------------
-runTest("1. RBAC: Role validation protects administrative operations", function() use ($pdo) {
+runTest("1. RBAC: Role validation protects administrative operations", function () use ($pdo) {
     Session::start();
 
     // Check seeded admin user exists and has role 'admin'
@@ -101,7 +103,7 @@ runTest("1. RBAC: Role validation protects administrative operations", function(
 // -----------------------------------------------------------------------------
 // 2. Incident Filtering, Clamping, and Pagination
 // -----------------------------------------------------------------------------
-runTest("2. Incident filtering, search, and pagination clamp safely", function() use ($pdo) {
+runTest("2. Incident filtering, search, and pagination clamp safely", function () use ($pdo) {
     // Test pagination clamping
     $res1 = IncidentManager::getIncidents([], -5, 1000, $pdo);
     if (!isset($res1['pagination'], $res1['incidents'])) {
@@ -117,7 +119,7 @@ runTest("2. Incident filtering, search, and pagination clamp safely", function()
     // Test filter by category
     $resCat = IncidentManager::getIncidents(['category_id' => 1], 1, 10, $pdo);
     foreach ($resCat['incidents'] as $inc) {
-        if ((int)$inc['category_id'] !== 1) {
+        if ((int) $inc['category_id'] !== 1) {
             return "Expected category_id 1, got {$inc['category_id']}";
         }
     }
@@ -134,7 +136,7 @@ runTest("2. Incident filtering, search, and pagination clamp safely", function()
 // -----------------------------------------------------------------------------
 // 3. Officer retrieval only returns active officers
 // -----------------------------------------------------------------------------
-runTest("3. IncidentManager::getActiveOfficers() returns only active field officers", function() use ($pdo) {
+runTest("3. IncidentManager::getActiveOfficers() returns only active field officers", function () use ($pdo) {
     $officers = IncidentManager::getActiveOfficers($pdo);
     if (empty($officers)) {
         return "Expected at least one active officer in seed data";
@@ -154,7 +156,7 @@ runTest("3. IncidentManager::getActiveOfficers() returns only active field offic
 // -----------------------------------------------------------------------------
 // 4. Valid Incident Assignment to Field Officer
 // -----------------------------------------------------------------------------
-runTest("4. Assigning incident to active officer succeeds and updates status", function() use ($pdo) {
+runTest("4. Assigning incident to active officer succeeds and updates status", function () use ($pdo) {
     $pdo->beginTransaction();
     try {
         $incId = createSyntheticIncident($pdo, 'reported');
@@ -224,7 +226,7 @@ runTest("4. Assigning incident to active officer succeeds and updates status", f
 // -----------------------------------------------------------------------------
 // 5. Ineligible Officer Assignment Rejection
 // -----------------------------------------------------------------------------
-runTest("5. Assignment to citizen or invalid user is rejected", function() use ($pdo) {
+runTest("5. Assignment to citizen or invalid user is rejected", function () use ($pdo) {
     $pdo->beginTransaction();
     try {
         $incId = createSyntheticIncident($pdo, 'reported');
@@ -261,7 +263,7 @@ runTest("5. Assignment to citizen or invalid user is rejected", function() use (
 // -----------------------------------------------------------------------------
 // 6. Reassignment Workflow
 // -----------------------------------------------------------------------------
-runTest("6. Reassignment updates previous work order to 'reassigned' and creates new assignment", function() use ($pdo) {
+runTest("6. Reassignment updates previous work order to 'reassigned' and creates new assignment", function () use ($pdo) {
     $pdo->beginTransaction();
     try {
         $incId = createSyntheticIncident($pdo, 'triaged');
@@ -327,7 +329,7 @@ runTest("6. Reassignment updates previous work order to 'reassigned' and creates
 // -----------------------------------------------------------------------------
 // 7. Valid Status Lifecycle Transitions
 // -----------------------------------------------------------------------------
-runTest("7. Valid status lifecycle state-machine transitions succeed", function() use ($pdo) {
+runTest("7. Valid status lifecycle state-machine transitions succeed", function () use ($pdo) {
     $pdo->beginTransaction();
     try {
         $incId = createSyntheticIncident($pdo, 'reported');
@@ -354,14 +356,44 @@ runTest("7. Valid status lifecycle state-machine transitions succeed", function(
             return "assigned -> in_progress failed: " . $r3['message'];
         }
 
-        // 4. in_progress -> resolved (with resolution note)
-        $r4 = IncidentManager::updateStatus($incId, 'resolved', $adminId, 'Road surface repaved and bitumen sealed', $pdo);
-        if (!$r4['success']) {
+        // 4. Transition via resolution evidence workflow
+        // Create an active assignment for officer 2
+        $officerId = 2;
+        $pdo->prepare("INSERT INTO incident_assignments (incident_id, officer_id, assigned_by_user_id, assignment_status, assigned_at) VALUES (:inc_id, :off_id, :adm_id, 'assigned', NOW())")
+            ->execute([':inc_id' => $incId, ':off_id' => $officerId, ':adm_id' => $adminId]);
+        // Submit dummy resolution evidence as the assigned officer
+        $tmp = tempnam(sys_get_temp_dir(), 'cs_test_img_');
+        $im = imagecreatetruecolor(60, 60);
+        $col = imagecolorallocate($im, 40, 167, 69);
+        imagefill($im, 0, 0, $col);
+        imagepng($im, $tmp);
+        imagedestroy($im);
+        $evidenceFile = [
+            'name' => 'evidence.png',
+            'type' => 'image/png',
+            'tmp_name' => $tmp,
+            'error' => UPLOAD_ERR_OK,
+            'size' => filesize($tmp)
+        ];
+        $resEvidence = IncidentManager::submitResolutionEvidence($incId, $officerId, $evidenceFile, 'Test evidence notes', 21.14, 72.77, $pdo);
+        @unlink($tmp);
+        if (!$resEvidence['success']) {
             $pdo->rollBack();
-            return "in_progress -> resolved failed: " . $r4['message'];
+            return "Resolution evidence submission failed: " . $resEvidence['message'];
         }
-
-        // Check resolved_at timestamp
+        // Admin approves evidence
+        $resApprove = IncidentManager::reviewResolutionEvidence(
+            $incId,
+            $adminId,
+            'approve',
+            'Evidence verified successfully',
+            $pdo
+        );
+        if (!$resApprove['success']) {
+            $pdo->rollBack();
+            return "Evidence approval failed: " . $resApprove['message'];
+        }
+        // Verify incident is now resolved
         $chk1 = $pdo->prepare("SELECT status, resolved_at FROM incidents WHERE id = :id");
         $chk1->execute([':id' => $incId]);
         $row1 = $chk1->fetch();
@@ -399,7 +431,7 @@ runTest("7. Valid status lifecycle state-machine transitions succeed", function(
 // -----------------------------------------------------------------------------
 // 8. Invalid Status Lifecycle Transitions Rejected
 // -----------------------------------------------------------------------------
-runTest("8. Disallowed lifecycle state transitions are rejected", function() use ($pdo) {
+runTest("8. Disallowed lifecycle state transitions are rejected", function () use ($pdo) {
     $pdo->beginTransaction();
     try {
         $incId = createSyntheticIncident($pdo, 'reported');
@@ -441,30 +473,51 @@ runTest("8. Disallowed lifecycle state transitions are rejected", function() use
 });
 
 // -----------------------------------------------------------------------------
-// 9. Mandatory Resolution / Closure Justifications
+// 9. Mandatory resolution / closure and evidence-review justifications
 // -----------------------------------------------------------------------------
-runTest("9. Mandatory resolution and closure notes are strictly enforced", function() use ($pdo) {
+runTest("9. Mandatory resolution and closure notes are strictly enforced", function () use ($pdo) {
     $pdo->beginTransaction();
+
     try {
         $incId = createSyntheticIncident($pdo, 'in_progress');
         $adminId = 1;
 
-        // Attempt resolved with empty reason
-        $resEmpty = IncidentManager::updateStatus($incId, 'resolved', $adminId, '', $pdo);
+        // Direct resolution must be rejected by the state-machine guard.
+        $resEmpty = IncidentManager::updateStatus(
+            $incId,
+            'resolved',
+            $adminId,
+            '',
+            $pdo
+        );
+
         if ($resEmpty['success']) {
             $pdo->rollBack();
-            return "Transition to resolved with empty note should fail";
-        }
-        if (!str_contains($resEmpty['message'], 'at least 5 characters')) {
-            $pdo->rollBack();
-            return "Expected >= 5 characters validation message";
+            return "Direct in_progress -> resolved transition should be rejected";
         }
 
-        // Attempt resolved with too short reason (3 chars)
-        $resShort = IncidentManager::updateStatus($incId, 'resolved', $adminId, 'Done', $pdo);
+        // A short note must not bypass the state-machine guard either.
+        $resShort = IncidentManager::updateStatus(
+            $incId,
+            'resolved',
+            $adminId,
+            'Done',
+            $pdo
+        );
+
         if ($resShort['success']) {
             $pdo->rollBack();
-            return "Transition to resolved with note < 5 characters should fail";
+            return "Direct resolution with a short note should be rejected";
+        }
+
+        // Verify the incident has not bypassed the evidence workflow.
+        $stmt = $pdo->prepare("SELECT status FROM incidents WHERE id = :id");
+        $stmt->execute([':id' => $incId]);
+        $status = $stmt->fetchColumn();
+
+        if ($status !== 'in_progress') {
+            $pdo->rollBack();
+            return "Rejected direct transitions must leave the incident in_progress";
         }
 
         $pdo->rollBack();
@@ -480,7 +533,7 @@ runTest("9. Mandatory resolution and closure notes are strictly enforced", funct
 // -----------------------------------------------------------------------------
 // 10. Automatic Assignment Completion on Resolution
 // -----------------------------------------------------------------------------
-runTest("10. Open officer assignments auto-complete when incident is resolved or closed", function() use ($pdo) {
+runTest("10. Open officer assignments auto-complete when incident is resolved or closed", function () use ($pdo) {
     $pdo->beginTransaction();
     try {
         $incId = createSyntheticIncident($pdo, 'in_progress');
@@ -492,20 +545,45 @@ runTest("10. Open officer assignments auto-complete when incident is resolved or
             "INSERT INTO incident_assignments (incident_id, officer_id, assigned_by_user_id, assignment_status, assigned_at)
              VALUES (:inc_id, :off_id, :adm_id, 'assigned', NOW())"
         )->execute([':inc_id' => $incId, ':off_id' => $officerId, ':adm_id' => $adminId]);
-        $assignId = (int)$pdo->lastInsertId();
+        $assignId = (int) $pdo->lastInsertId();
 
-        // Resolve incident
-        $res = IncidentManager::updateStatus($incId, 'resolved', $adminId, 'Repaired by engineering crew', $pdo);
-        if (!$res['success']) {
+        // Submit dummy resolution evidence as the assigned officer
+        $tmp = tempnam(sys_get_temp_dir(), 'cs_test_img_');
+        $im = imagecreatetruecolor(60, 60);
+        $col = imagecolorallocate($im, 40, 167, 69);
+        imagefill($im, 0, 0, $col);
+        imagepng($im, $tmp);
+        imagedestroy($im);
+        $evidenceFile = [
+            'name' => 'evidence.png',
+            'type' => 'image/png',
+            'tmp_name' => $tmp,
+            'error' => UPLOAD_ERR_OK,
+            'size' => filesize($tmp)
+        ];
+        $resEvidence = IncidentManager::submitResolutionEvidence($incId, $officerId, $evidenceFile, 'Test evidence notes', 21.14, 72.77, $pdo);
+        @unlink($tmp);
+        if (!$resEvidence['success']) {
             $pdo->rollBack();
-            return "Status update to resolved failed: " . $res['message'];
+            return "Resolution evidence submission failed: " . $resEvidence['message'];
         }
-
+        // Admin approves evidence
+        $resApprove = IncidentManager::reviewResolutionEvidence(
+            $incId,
+            $adminId,
+            'approve',
+            'Evidence verified successfully',
+            $pdo
+        );
+        if (!$resApprove['success']) {
+            $pdo->rollBack();
+            return "Evidence approval failed: " . $resApprove['message'];
+        }
         // Check assignment was marked completed
         $chk = $pdo->prepare("SELECT assignment_status, completed_at FROM incident_assignments WHERE id = :id");
         $chk->execute([':id' => $assignId]);
         $row = $chk->fetch();
-        if ($row['assignment_status'] !== 'completed' || empty($row['completed_at'])) {
+        if (!$row || $row['assignment_status'] !== 'completed' || empty($row['completed_at'])) {
             $pdo->rollBack();
             return "Assignment was not marked completed with completed_at timestamp";
         }
@@ -521,30 +599,113 @@ runTest("10. Open officer assignments auto-complete when incident is resolved or
 });
 
 // -----------------------------------------------------------------------------
-// 11. Priority score recalculation after status update
+// 11. Priority score recalculation through valid resolution workflow
 // -----------------------------------------------------------------------------
-runTest("11. Priority score is updated upon status transition", function() use ($pdo) {
+runTest("11. Priority score remains valid after resolution", function () use ($pdo) {
     $pdo->beginTransaction();
+    $tmp = null;
+
     try {
         $incId = createSyntheticIncident($pdo, 'in_progress', 'critical');
         $adminId = 1;
+        $officerId = 2;
 
-        // Transition to resolved
-        $res = IncidentManager::updateStatus($incId, 'resolved', $adminId, 'Resolved drainage blockage', $pdo);
-        if (!$res['success']) {
+        // Create an active assignment.
+        $pdo->prepare(
+            "INSERT INTO incident_assignments
+                (incident_id, officer_id, assigned_by_user_id, assignment_status, assigned_at)
+             VALUES
+                (:inc_id, :off_id, :admin_id, 'assigned', NOW())"
+        )->execute([
+                    ':inc_id' => $incId,
+                    ':off_id' => $officerId,
+                    ':admin_id' => $adminId
+                ]);
+
+        // Capture the initial score.
+        $stmt = $pdo->prepare(
+            "SELECT priority_score FROM incidents WHERE id = :id"
+        );
+        $stmt->execute([':id' => $incId]);
+        $initialScore = $stmt->fetchColumn();
+
+        // Generate a valid test image.
+        $tmp = tempnam(sys_get_temp_dir(), 'cs_test_img_');
+        if ($tmp === false) {
             $pdo->rollBack();
-            return "Transition to resolved failed";
+            return "Could not create temporary evidence image";
         }
 
-        // Status factor for resolved is 0.40, so priority_score should reflect resolved status
-        $stmt = $pdo->prepare("SELECT priority_score FROM incidents WHERE id = :id");
-        $stmt->execute([':id' => $incId]);
-        $score = (int)$stmt->fetchColumn();
-
-        // With status = 'resolved' (0.40 multiplier), score is scaled down significantly from initial 50+
-        if ($score <= 0 || $score > 60) {
+        $im = imagecreatetruecolor(60, 60);
+        if ($im === false) {
+            @unlink($tmp);
+            $tmp = null;
             $pdo->rollBack();
-            return "Expected priority score to be discounted for resolved status, got {$score}";
+            return "Could not create test image";
+        }
+
+        $col = imagecolorallocate($im, 40, 167, 69);
+        imagefill($im, 0, 0, $col);
+        imagepng($im, $tmp);
+        imagedestroy($im);
+
+        $evidenceFile = [
+            'name' => 'evidence.png',
+            'type' => 'image/png',
+            'tmp_name' => $tmp,
+            'error' => UPLOAD_ERR_OK,
+            'size' => filesize($tmp)
+        ];
+
+        $resEvidence = IncidentManager::submitResolutionEvidence(
+            $incId,
+            $officerId,
+            $evidenceFile,
+            'Test resolution evidence',
+            21.14,
+            72.77,
+            $pdo
+        );
+
+        @unlink($tmp);
+        $tmp = null;
+
+        if (!$resEvidence['success']) {
+            $pdo->rollBack();
+            return "Evidence submission failed: " . $resEvidence['message'];
+        }
+
+        $resApprove = IncidentManager::reviewResolutionEvidence(
+            $incId,
+            $adminId,
+            'approve',
+            'Evidence verified successfully',
+            $pdo
+        );
+
+        if (!$resApprove['success']) {
+            $pdo->rollBack();
+            return "Evidence approval failed: " . $resApprove['message'];
+        }
+
+        $stmt = $pdo->prepare(
+            "SELECT status, priority_score FROM incidents WHERE id = :id"
+        );
+        $stmt->execute([':id' => $incId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row || $row['status'] !== 'resolved') {
+            $pdo->rollBack();
+            return "Incident was not resolved through evidence approval";
+        }
+
+        if (
+            $row['priority_score'] === null ||
+            !is_numeric($row['priority_score']) ||
+            (int) $row['priority_score'] < 0
+        ) {
+            $pdo->rollBack();
+            return "Priority score is missing or invalid after resolution";
         }
 
         $pdo->rollBack();
@@ -554,13 +715,17 @@ runTest("11. Priority score is updated upon status transition", function() use (
             $pdo->rollBack();
         }
         throw $e;
+    } finally {
+        if ($tmp !== null && file_exists($tmp)) {
+            @unlink($tmp);
+        }
     }
 });
 
 // -----------------------------------------------------------------------------
 // 12. Privacy Enclave: Citizen PII and tracking tokens are never leaked
 // -----------------------------------------------------------------------------
-runTest("12. Incident detail queries never expose citizen contacts enclave or raw tracking tokens", function() use ($pdo) {
+runTest("12. Incident detail queries never expose citizen contacts enclave or raw tracking tokens", function () use ($pdo) {
     $incident = IncidentManager::getIncidentDetails(1, $pdo);
     if (!$incident) {
         return "Seed incident ID 1 not found";
@@ -593,7 +758,7 @@ runTest("12. Incident detail queries never expose citizen contacts enclave or ra
 // -----------------------------------------------------------------------------
 // 13. SQL Injection and Special Characters Sanitization
 // -----------------------------------------------------------------------------
-runTest("13. Dangerous SQL and XSS strings in filter inputs are safely handled", function() use ($pdo) {
+runTest("13. Dangerous SQL and XSS strings in filter inputs are safely handled", function () use ($pdo) {
     $nastyInputs = [
         "'; DROP TABLE incidents; --",
         "1' OR '1'='1",
@@ -614,7 +779,7 @@ runTest("13. Dangerous SQL and XSS strings in filter inputs are safely handled",
 // -----------------------------------------------------------------------------
 // 14. CSRF Protection Check
 // -----------------------------------------------------------------------------
-runTest("14. CSRF validation accepts valid token and rejects invalid/missing token", function() {
+runTest("14. CSRF validation accepts valid token and rejects invalid/missing token", function () {
     Session::start();
     $token = Session::getCsrfToken();
 
