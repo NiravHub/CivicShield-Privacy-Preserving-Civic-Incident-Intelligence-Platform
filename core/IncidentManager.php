@@ -1155,18 +1155,20 @@ class IncidentManager
             $pdo = Database::getConnection();
         }
 
-        $stmt = $pdo->prepare(
-            "SELECT re.*, 
-                    u_off.username AS officer_username,
-                    u_off.full_name AS officer_full_name,
-                    u_adm.username AS verifier_username,
-                    u_adm.full_name AS verifier_full_name
-             FROM resolution_evidence re
-             JOIN users u_off ON u_off.id = re.officer_id
-             LEFT JOIN users u_adm ON u_adm.id = re.verified_by_user_id
-             WHERE re.incident_id = :inc_id
-             ORDER BY re.id DESC"
-        );
+        
+$stmt = $pdo->prepare(
+    "SELECT re.*,
+            u_off.username AS officer_username,
+            u_off.username AS officer_full_name,
+            u_adm.username AS verifier_username,
+            u_adm.username AS verifier_full_name
+     FROM resolution_evidence re
+     JOIN users u_off ON u_off.id = re.officer_id
+     LEFT JOIN users u_adm ON u_adm.id = re.verified_by_user_id
+     WHERE re.incident_id = :inc_id
+     ORDER BY re.id DESC"
+);
+
         $stmt->execute([':inc_id' => $incidentId]);
         return $stmt->fetchAll();
     }
