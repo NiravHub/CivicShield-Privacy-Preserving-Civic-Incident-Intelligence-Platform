@@ -14,14 +14,14 @@ class IncidentManager
      * Defines strictly valid municipal incident lifecycle paths.
      */
     public const ALLOWED_TRANSITIONS = [
-        'reported'             => ['triaged', 'assigned', 'rejected'],
-        'triaged'              => ['assigned', 'in_progress', 'rejected'],
-        'assigned'             => ['in_progress', 'triaged', 'rejected'],
-        'in_progress'          => ['resolution_submitted', 'assigned', 'rejected'],
+        'reported' => ['triaged', 'assigned', 'rejected'],
+        'triaged' => ['assigned', 'in_progress', 'rejected'],
+        'assigned' => ['in_progress', 'triaged', 'rejected'],
+        'in_progress' => ['resolution_submitted', 'assigned', 'rejected'],
         'resolution_submitted' => ['resolved', 'in_progress', 'rejected'],
-        'resolved'             => ['closed', 'in_progress'],
-        'closed'               => ['in_progress'],
-        'rejected'             => ['reported', 'triaged']
+        'resolved' => ['closed', 'in_progress'],
+        'closed' => ['in_progress'],
+        'rejected' => ['reported', 'triaged']
     ];
 
     /**
@@ -31,7 +31,7 @@ class IncidentManager
      * Direct marking of 'resolved' by officers is prohibited; resolution requires admin verification.
      */
     public const OFFICER_ALLOWED_TRANSITIONS = [
-        'assigned'    => ['in_progress'],
+        'assigned' => ['in_progress'],
         'in_progress' => ['resolution_submitted']
     ];
 
@@ -65,39 +65,39 @@ class IncidentManager
         }
 
         // 2. Category Filter
-        if (!empty($filters['category_id']) && is_numeric($filters['category_id']) && (int)$filters['category_id'] > 0) {
+        if (!empty($filters['category_id']) && is_numeric($filters['category_id']) && (int) $filters['category_id'] > 0) {
             $whereClauses[] = 'i.category_id = :category_id';
-            $params[':category_id'] = (int)$filters['category_id'];
+            $params[':category_id'] = (int) $filters['category_id'];
         }
 
         // 3. Minimum Priority Filter
-        if (isset($filters['min_priority']) && is_numeric($filters['min_priority']) && (int)$filters['min_priority'] > 0) {
-            $minPri = max(0, min(100, (int)$filters['min_priority']));
+        if (isset($filters['min_priority']) && is_numeric($filters['min_priority']) && (int) $filters['min_priority'] > 0) {
+            $minPri = max(0, min(100, (int) $filters['min_priority']));
             $whereClauses[] = 'i.priority_score >= :min_priority';
             $params[':min_priority'] = $minPri;
         }
 
         // 4. Date Range Filter (created_at)
-        if (!empty($filters['date_from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$filters['date_from'])) {
+        if (!empty($filters['date_from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $filters['date_from'])) {
             $whereClauses[] = 'i.created_at >= :date_from';
             $params[':date_from'] = $filters['date_from'] . ' 00:00:00';
         }
-        if (!empty($filters['date_to']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$filters['date_to'])) {
+        if (!empty($filters['date_to']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $filters['date_to'])) {
             $whereClauses[] = 'i.created_at <= :date_to';
             $params[':date_to'] = $filters['date_to'] . ' 23:59:59';
         }
 
         // 5. Search Filter (incident reference, title, or linked report reference)
         if (!empty($filters['search'])) {
-            $searchTerm = trim((string)$filters['search']);
+            $searchTerm = trim((string) $filters['search']);
             if ($searchTerm !== '') {
                 $whereClauses[] = '(i.incident_reference LIKE :search_ref OR i.title LIKE :search_title OR EXISTS (
                     SELECT 1 FROM incident_reports r 
                     WHERE r.incident_id = i.id AND r.report_reference LIKE :search_rep
                 ))';
-                $params[':search_ref']   = '%' . $searchTerm . '%';
+                $params[':search_ref'] = '%' . $searchTerm . '%';
                 $params[':search_title'] = '%' . $searchTerm . '%';
-                $params[':search_rep']   = '%' . $searchTerm . '%';
+                $params[':search_rep'] = '%' . $searchTerm . '%';
             }
         }
 
@@ -107,9 +107,9 @@ class IncidentManager
         $countSql = "SELECT COUNT(*) FROM incidents i {$whereSql}";
         $countStmt = $pdo->prepare($countSql);
         $countStmt->execute($params);
-        $totalRecords = (int)$countStmt->fetchColumn();
+        $totalRecords = (int) $countStmt->fetchColumn();
 
-        $totalPages = max(1, (int)ceil($totalRecords / $perPage));
+        $totalPages = max(1, (int) ceil($totalRecords / $perPage));
         if ($page > $totalPages && $totalRecords > 0) {
             $page = $totalPages;
         }
@@ -150,7 +150,7 @@ class IncidentManager
         // Decode JSON priority breakdown safely
         foreach ($incidents as &$inc) {
             if (!empty($inc['priority_breakdown'])) {
-                $inc['priority_breakdown'] = json_decode((string)$inc['priority_breakdown'], true);
+                $inc['priority_breakdown'] = json_decode((string) $inc['priority_breakdown'], true);
             }
         }
         unset($inc);
@@ -158,12 +158,12 @@ class IncidentManager
         return [
             'incidents' => $incidents,
             'pagination' => [
-                'current_page'  => $page,
-                'per_page'      => $perPage,
+                'current_page' => $page,
+                'per_page' => $perPage,
                 'total_records' => $totalRecords,
-                'total_pages'   => $totalPages,
-                'has_previous'  => $page > 1,
-                'has_next'      => $page < $totalPages
+                'total_pages' => $totalPages,
+                'has_previous' => $page > 1,
+                'has_next' => $page < $totalPages
             ]
         ];
     }
@@ -206,7 +206,7 @@ class IncidentManager
         }
 
         if (!empty($incident['priority_breakdown'])) {
-            $incident['priority_breakdown'] = json_decode((string)$incident['priority_breakdown'], true);
+            $incident['priority_breakdown'] = json_decode((string) $incident['priority_breakdown'], true);
         }
 
         return $incident;
@@ -404,12 +404,12 @@ class IncidentManager
                  VALUES (:inc_id, :off_id, :admin_id, \'assigned\', :instructions, NOW())'
             );
             $insStmt->execute([
-                ':inc_id'       => $incidentId,
-                ':off_id'       => $officerId,
-                ':admin_id'     => $adminUserId,
+                ':inc_id' => $incidentId,
+                ':off_id' => $officerId,
+                ':admin_id' => $adminUserId,
                 ':instructions' => $cleanInstructions !== '' ? $cleanInstructions : null
             ]);
-            $assignmentId = (int)$pdo->lastInsertId();
+            $assignmentId = (int) $pdo->lastInsertId();
 
             // If incident was reported or triaged, transition status to 'assigned'
             $currentStatus = $incident['status'];
@@ -417,7 +417,7 @@ class IncidentManager
                 $pdo->prepare("UPDATE incidents SET status = 'assigned', updated_at = NOW() WHERE id = :id")
                     ->execute([':id' => $incidentId]);
 
-                $reason = $isReassignment 
+                $reason = $isReassignment
                     ? "Reassigned to {$officer['username']} ({$officer['department']})."
                     : "Assigned to {$officer['username']} ({$officer['department']}).";
 
@@ -426,16 +426,16 @@ class IncidentManager
                      (incident_id, changed_by_user_id, status_from, status_to, reason, is_public, created_at)
                      VALUES (:inc_id, :actor_id, :s_from, \'assigned\', :reason, 1, NOW())'
                 )->execute([
-                    ':inc_id'   => $incidentId,
-                    ':actor_id' => $adminUserId,
-                    ':s_from'   => $currentStatus,
-                    ':reason'   => $reason
-                ]);
+                            ':inc_id' => $incidentId,
+                            ':actor_id' => $adminUserId,
+                            ':s_from' => $currentStatus,
+                            ':reason' => $reason
+                        ]);
             }
 
             // Record immutable audit log
             $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-            $ipHash = hash('sha256', $clientIp . (string)Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
+            $ipHash = hash('sha256', $clientIp . (string) Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
             $action = $isReassignment ? 'INCIDENT_REASSIGNED' : 'INCIDENT_ASSIGNED';
 
             $pdo->prepare(
@@ -443,26 +443,26 @@ class IncidentManager
                  (actor_user_id, actor_role, action, target_type, target_id, ip_hash, metadata_json, created_at)
                  VALUES (:actor_id, \'admin\', :action, \'incident\', :target_id, :ip_hash, :meta, NOW())'
             )->execute([
-                ':actor_id'  => $adminUserId,
-                ':action'    => $action,
-                ':target_id' => $incident['incident_reference'],
-                ':ip_hash'   => $ipHash,
-                ':meta'      => json_encode([
-                    'assignment_id'   => $assignmentId,
-                    'incident_id'     => $incidentId,
-                    'officer_id'      => $officerId,
-                    'officer_name'    => $officer['username'],
-                    'department'      => $officer['department'],
-                    'is_reassignment' => $isReassignment,
-                    'instructions'    => $cleanInstructions
-                ])
-            ]);
+                        ':actor_id' => $adminUserId,
+                        ':action' => $action,
+                        ':target_id' => $incident['incident_reference'],
+                        ':ip_hash' => $ipHash,
+                        ':meta' => json_encode([
+                            'assignment_id' => $assignmentId,
+                            'incident_id' => $incidentId,
+                            'officer_id' => $officerId,
+                            'officer_name' => $officer['username'],
+                            'department' => $officer['department'],
+                            'is_reassignment' => $isReassignment,
+                            'instructions' => $cleanInstructions
+                        ])
+                    ]);
 
             if ($manageTx) {
                 $pdo->commit();
             }
 
-            $msg = $isReassignment 
+            $msg = $isReassignment
                 ? "Incident successfully reassigned to {$officer['username']}."
                 : "Incident successfully assigned to {$officer['username']}.";
 
@@ -487,6 +487,25 @@ class IncidentManager
      * @param string   $actorRole   Actor role ('admin' or 'officer')
      * @return array [success => bool, message => string]
      */
+    // Helper: Check if an incident has at least one verified resolution evidence record
+    private static function hasApprovedEvidence(int $incidentId, ?PDO $pdo = null): bool
+    {
+        if ($pdo === null) {
+            $pdo = Database::getConnection();
+        }
+        try {
+            $stmt = $pdo->prepare(
+                "SELECT COUNT(*) FROM resolution_evidence WHERE incident_id = :inc_id AND verification_status = :status"
+            );
+            $stmt->execute([':inc_id' => $incidentId, ':status' => 'verified']);
+            return ((int) $stmt->fetchColumn()) > 0;
+        } catch (Throwable $e) {
+            @error_log('[hasApprovedEvidence error] ' . $e->getMessage());
+            // On error treat as no approved evidence to avoid unsafe transition
+            return false;
+        }
+    }
+
     public static function updateStatus(
         int $incidentId,
         string $newStatus,
@@ -613,7 +632,7 @@ class IncidentManager
             $upStmt = $pdo->prepare($upSql);
             $upStmt->execute([
                 ':status' => $newStatus,
-                ':id'     => $incidentId
+                ':id' => $incidentId
             ]);
 
             // Update assignment status
@@ -638,10 +657,17 @@ class IncidentManager
                     )->execute([':id' => $activeAssignment['id']]);
                 }
             } elseif (in_array($newStatus, ['resolved', 'closed'], true)) {
-            // Enforce that resolution can only be marked 'resolved' after evidence has been verified
-            if ($newStatus === 'resolved' && $currentStatus !== 'resolution_submitted') {
-                return ['success' => false, 'message' => "Incident can only be marked 'resolved' after evidence has been submitted and approved (current status: '{$currentStatus}')."];
-            }
+                // Require verified evidence before resolving an incident.
+                if ($newStatus === 'resolved' && !self::hasApprovedEvidence($incidentId, $pdo)) {
+                    if ($manageTx && $pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+
+                    return [
+                        'success' => false,
+                        'message' => "Incident can only be marked 'resolved' after evidence has been submitted and approved."
+                    ];
+                }
 
                 // If admin marked resolved or closed, complete any open officer assignment
                 $pdo->prepare(
@@ -665,16 +691,16 @@ class IncidentManager
                  VALUES (:inc_id, :actor_id, :s_from, :s_to, :reason, 1, NOW())'
             );
             $histStmt->execute([
-                ':inc_id'   => $incidentId,
+                ':inc_id' => $incidentId,
                 ':actor_id' => $actorUserId,
-                ':s_from'   => $currentStatus,
-                ':s_to'     => $newStatus,
-                ':reason'   => $cleanReason !== '' ? $cleanReason : "Status updated to {$newStatus}."
+                ':s_from' => $currentStatus,
+                ':s_to' => $newStatus,
+                ':reason' => $cleanReason !== '' ? $cleanReason : "Status updated to {$newStatus}."
             ]);
 
             // Insert into audit logs
             $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-            $ipHash = hash('sha256', $clientIp . (string)Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
+            $ipHash = hash('sha256', $clientIp . (string) Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
             $action = ($actorRole === 'officer') ? 'OFFICER_STATUS_UPDATE' : 'INCIDENT_STATUS_TRANSITION';
 
             $pdo->prepare(
@@ -682,19 +708,19 @@ class IncidentManager
                  (actor_user_id, actor_role, action, target_type, target_id, ip_hash, metadata_json, created_at)
                  VALUES (:actor_id, :actor_role, :action, \'incident\', :target_id, :ip_hash, :meta, NOW())'
             )->execute([
-                ':actor_id'   => $actorUserId,
-                ':actor_role' => $actorRole,
-                ':action'     => $action,
-                ':target_id'  => $incident['incident_reference'],
-                ':ip_hash'    => $ipHash,
-                ':meta'       => json_encode([
-                    'incident_id' => $incidentId,
-                    'status_from' => $currentStatus,
-                    'status_to'   => $newStatus,
-                    'reason'      => $cleanReason,
-                    'role'        => $actorRole
-                ])
-            ]);
+                        ':actor_id' => $actorUserId,
+                        ':actor_role' => $actorRole,
+                        ':action' => $action,
+                        ':target_id' => $incident['incident_reference'],
+                        ':ip_hash' => $ipHash,
+                        ':meta' => json_encode([
+                            'incident_id' => $incidentId,
+                            'status_from' => $currentStatus,
+                            'status_to' => $newStatus,
+                            'reason' => $cleanReason,
+                            'role' => $actorRole
+                        ])
+                    ]);
 
             // Recalculate priority score
             PriorityScorer::updateIncidentPriority($incidentId, $pdo);
@@ -847,18 +873,18 @@ class IncidentManager
                  VALUES (:inc_id, :assign_id, :off_id, :path, :mime, :size, :sha, :notes, :lat, :lng, \'pending_review\', NOW())'
             );
             $evStmt->execute([
-                ':inc_id'    => $incidentId,
+                ':inc_id' => $incidentId,
                 ':assign_id' => $assignment['id'],
-                ':off_id'    => $officerId,
-                ':path'      => $img['file_path'],
-                ':mime'      => $img['file_mime'],
-                ':size'      => $img['file_size_bytes'],
-                ':sha'       => $img['sha256_hash'],
-                ':notes'     => $cleanNotes,
-                ':lat'       => $inspectionLat,
-                ':lng'       => $inspectionLng,
+                ':off_id' => $officerId,
+                ':path' => $img['file_path'],
+                ':mime' => $img['file_mime'],
+                ':size' => $img['file_size_bytes'],
+                ':sha' => $img['sha256_hash'],
+                ':notes' => $cleanNotes,
+                ':lat' => $inspectionLat,
+                ':lng' => $inspectionLng,
             ]);
-            $evidenceId = (int)$pdo->lastInsertId();
+            $evidenceId = (int) $pdo->lastInsertId();
 
             // 5. Update incident status to resolution_submitted
             $pdo->prepare(
@@ -880,30 +906,30 @@ class IncidentManager
                  (incident_id, changed_by_user_id, status_from, status_to, reason, is_public, created_at)
                  VALUES (:inc_id, :actor_id, \'in_progress\', \'resolution_submitted\', :reason, 1, NOW())'
             )->execute([
-                ':inc_id'   => $incidentId,
-                ':actor_id' => $officerId,
-                ':reason'   => 'Field remediation completed; resolution evidence submitted for administrative verification. ' . $cleanNotes
-            ]);
+                        ':inc_id' => $incidentId,
+                        ':actor_id' => $officerId,
+                        ':reason' => 'Field remediation completed; resolution evidence submitted for administrative verification. ' . $cleanNotes
+                    ]);
 
             // 8. Audit log entry
             $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-            $ipHash = hash('sha256', $clientIp . (string)Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
+            $ipHash = hash('sha256', $clientIp . (string) Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
             $pdo->prepare(
                 'INSERT INTO audit_logs 
                  (actor_user_id, actor_role, action, target_type, target_id, ip_hash, metadata_json, created_at)
                  VALUES (:actor_id, \'officer\', \'RESOLUTION_EVIDENCE_SUBMITTED\', \'incident\', :target_id, :ip_hash, :meta, NOW())'
             )->execute([
-                ':actor_id'  => $officerId,
-                ':target_id' => $incident['incident_reference'],
-                ':ip_hash'   => $ipHash,
-                ':meta'      => json_encode([
-                    'incident_id'        => $incidentId,
-                    'evidence_id'        => $evidenceId,
-                    'photo_sha256'       => $img['sha256_hash'],
-                    'notes'              => $cleanNotes,
-                    'has_inspection_gps' => ($inspectionLat !== null && $inspectionLng !== null)
-                ])
-            ]);
+                        ':actor_id' => $officerId,
+                        ':target_id' => $incident['incident_reference'],
+                        ':ip_hash' => $ipHash,
+                        ':meta' => json_encode([
+                            'incident_id' => $incidentId,
+                            'evidence_id' => $evidenceId,
+                            'photo_sha256' => $img['sha256_hash'],
+                            'notes' => $cleanNotes,
+                            'has_inspection_gps' => ($inspectionLat !== null && $inspectionLng !== null)
+                        ])
+                    ]);
 
             // 9. Recalculate priority
             PriorityScorer::updateIncidentPriority($incidentId, $pdo);
@@ -913,9 +939,9 @@ class IncidentManager
             }
 
             return [
-                'success'     => true,
+                'success' => true,
                 'evidence_id' => $evidenceId,
-                'message'     => 'Resolution evidence submitted successfully. Awaiting administrative verification.'
+                'message' => 'Resolution evidence submitted successfully. Awaiting administrative verification.'
             ];
         } catch (Throwable $e) {
             if ($manageTx && $pdo->inTransaction()) {
@@ -1005,7 +1031,7 @@ class IncidentManager
             }
 
             $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-            $ipHash = hash('sha256', $clientIp . (string)Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
+            $ipHash = hash('sha256', $clientIp . (string) Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
 
             if ($cleanDecision === 'approve') {
                 // Update evidence record
@@ -1017,10 +1043,10 @@ class IncidentManager
                          verified_at = NOW() 
                      WHERE id = :eid"
                 )->execute([
-                    ':admin_id' => $adminUserId,
-                    ':notes'    => $cleanNotes,
-                    ':eid'      => $evidence['id']
-                ]);
+                            ':admin_id' => $adminUserId,
+                            ':notes' => $cleanNotes,
+                            ':eid' => $evidence['id']
+                        ]);
 
                 // Update incident to resolved
                 $pdo->prepare(
@@ -1042,10 +1068,10 @@ class IncidentManager
                      (incident_id, changed_by_user_id, status_from, status_to, reason, is_public, created_at)
                      VALUES (:inc_id, :actor_id, \'resolution_submitted\', \'resolved\', :reason, 1, NOW())'
                 )->execute([
-                    ':inc_id'   => $incidentId,
-                    ':actor_id' => $adminUserId,
-                    ':reason'   => 'Resolution evidence verified and approved by municipal administration. ' . $cleanNotes
-                ]);
+                            ':inc_id' => $incidentId,
+                            ':actor_id' => $adminUserId,
+                            ':reason' => 'Resolution evidence verified and approved by municipal administration. ' . $cleanNotes
+                        ]);
 
                 // Audit log
                 $pdo->prepare(
@@ -1053,16 +1079,16 @@ class IncidentManager
                      (actor_user_id, actor_role, action, target_type, target_id, ip_hash, metadata_json, created_at)
                      VALUES (:actor_id, \'admin\', \'RESOLUTION_EVIDENCE_APPROVED\', \'incident\', :target_id, :ip_hash, :meta, NOW())'
                 )->execute([
-                    ':actor_id'  => $adminUserId,
-                    ':target_id' => $incident['incident_reference'],
-                    ':ip_hash'   => $ipHash,
-                    ':meta'      => json_encode([
-                        'incident_id' => $incidentId,
-                        'evidence_id' => $evidence['id'],
-                        'decision'    => 'approved',
-                        'notes'       => $cleanNotes
-                    ])
-                ]);
+                            ':actor_id' => $adminUserId,
+                            ':target_id' => $incident['incident_reference'],
+                            ':ip_hash' => $ipHash,
+                            ':meta' => json_encode([
+                                'incident_id' => $incidentId,
+                                'evidence_id' => $evidence['id'],
+                                'decision' => 'approved',
+                                'notes' => $cleanNotes
+                            ])
+                        ]);
 
                 $successMsg = 'Resolution evidence verified and approved. Incident is now marked as Resolved.';
             } else {
@@ -1075,10 +1101,10 @@ class IncidentManager
                          verified_at = NOW() 
                      WHERE id = :eid"
                 )->execute([
-                    ':admin_id' => $adminUserId,
-                    ':notes'    => $cleanNotes,
-                    ':eid'      => $evidence['id']
-                ]);
+                            ':admin_id' => $adminUserId,
+                            ':notes' => $cleanNotes,
+                            ':eid' => $evidence['id']
+                        ]);
 
                 // Update incident back to in_progress
                 $pdo->prepare(
@@ -1100,10 +1126,10 @@ class IncidentManager
                      (incident_id, changed_by_user_id, status_from, status_to, reason, is_public, created_at)
                      VALUES (:inc_id, :actor_id, \'resolution_submitted\', \'in_progress\', :reason, 1, NOW())'
                 )->execute([
-                    ':inc_id'   => $incidentId,
-                    ':actor_id' => $adminUserId,
-                    ':reason'   => 'Rework requested on resolution evidence: ' . $cleanNotes
-                ]);
+                            ':inc_id' => $incidentId,
+                            ':actor_id' => $adminUserId,
+                            ':reason' => 'Rework requested on resolution evidence: ' . $cleanNotes
+                        ]);
 
                 // Audit log
                 $pdo->prepare(
@@ -1111,16 +1137,16 @@ class IncidentManager
                      (actor_user_id, actor_role, action, target_type, target_id, ip_hash, metadata_json, created_at)
                      VALUES (:actor_id, \'admin\', \'RESOLUTION_EVIDENCE_REWORK_REQUESTED\', \'incident\', :target_id, :ip_hash, :meta, NOW())'
                 )->execute([
-                    ':actor_id'  => $adminUserId,
-                    ':target_id' => $incident['incident_reference'],
-                    ':ip_hash'   => $ipHash,
-                    ':meta'      => json_encode([
-                        'incident_id' => $incidentId,
-                        'evidence_id' => $evidence['id'],
-                        'decision'    => 'rework_requested',
-                        'notes'       => $cleanNotes
-                    ])
-                ]);
+                            ':actor_id' => $adminUserId,
+                            ':target_id' => $incident['incident_reference'],
+                            ':ip_hash' => $ipHash,
+                            ':meta' => json_encode([
+                                'incident_id' => $incidentId,
+                                'evidence_id' => $evidence['id'],
+                                'decision' => 'rework_requested',
+                                'notes' => $cleanNotes
+                            ])
+                        ]);
 
                 $successMsg = 'Rework requested. Incident returned to in-progress queue for field officer remediation.';
             }
@@ -1155,9 +1181,9 @@ class IncidentManager
             $pdo = Database::getConnection();
         }
 
-        
-$stmt = $pdo->prepare(
-    "SELECT re.*,
+
+        $stmt = $pdo->prepare(
+            "SELECT re.*,
             u_off.username AS officer_username,
             u_off.username AS officer_full_name,
             u_adm.username AS verifier_username,
@@ -1167,7 +1193,7 @@ $stmt = $pdo->prepare(
      LEFT JOIN users u_adm ON u_adm.id = re.verified_by_user_id
      WHERE re.incident_id = :inc_id
      ORDER BY re.id DESC"
-);
+        );
 
         $stmt->execute([':inc_id' => $incidentId]);
         return $stmt->fetchAll();
@@ -1195,7 +1221,7 @@ $stmt = $pdo->prepare(
                AND a.assignment_status NOT IN ('completed', 'cancelled', 'reassigned')"
         );
         $stmt1->execute([':off_id' => $officerId]);
-        $totalAssigned = (int)$stmt1->fetchColumn();
+        $totalAssigned = (int) $stmt1->fetchColumn();
 
         // 2. Requiring immediate action (active assignment, incident status = 'assigned')
         $stmt2 = $pdo->prepare(
@@ -1207,7 +1233,7 @@ $stmt = $pdo->prepare(
                AND i.status = 'assigned'"
         );
         $stmt2->execute([':off_id' => $officerId]);
-        $actionRequired = (int)$stmt2->fetchColumn();
+        $actionRequired = (int) $stmt2->fetchColumn();
 
         // 3. Currently in progress
         $stmt3 = $pdo->prepare(
@@ -1219,7 +1245,7 @@ $stmt = $pdo->prepare(
                AND i.status = 'in_progress'"
         );
         $stmt3->execute([':off_id' => $officerId]);
-        $inProgress = (int)$stmt3->fetchColumn();
+        $inProgress = (int) $stmt3->fetchColumn();
 
         // 4. Recently resolved
         $stmt4 = $pdo->prepare(
@@ -1230,12 +1256,12 @@ $stmt = $pdo->prepare(
                AND (i.status = 'resolved' OR a.assignment_status = 'completed')"
         );
         $stmt4->execute([':off_id' => $officerId]);
-        $recentlyResolved = (int)$stmt4->fetchColumn();
+        $recentlyResolved = (int) $stmt4->fetchColumn();
 
         return [
-            'total_assigned'    => $totalAssigned,
-            'action_required'   => $actionRequired,
-            'in_progress'       => $inProgress,
+            'total_assigned' => $totalAssigned,
+            'action_required' => $actionRequired,
+            'in_progress' => $inProgress,
             'recently_resolved' => $recentlyResolved
         ];
     }
@@ -1283,24 +1309,24 @@ $stmt = $pdo->prepare(
         }
 
         // Category filter
-        if (!empty($filters['category_id']) && is_numeric($filters['category_id']) && (int)$filters['category_id'] > 0) {
+        if (!empty($filters['category_id']) && is_numeric($filters['category_id']) && (int) $filters['category_id'] > 0) {
             $whereClauses[] = 'i.category_id = :category_id';
-            $params[':category_id'] = (int)$filters['category_id'];
+            $params[':category_id'] = (int) $filters['category_id'];
         }
 
         // Priority filter
-        if (isset($filters['min_priority']) && is_numeric($filters['min_priority']) && (int)$filters['min_priority'] > 0) {
-            $minPri = max(0, min(100, (int)$filters['min_priority']));
+        if (isset($filters['min_priority']) && is_numeric($filters['min_priority']) && (int) $filters['min_priority'] > 0) {
+            $minPri = max(0, min(100, (int) $filters['min_priority']));
             $whereClauses[] = 'i.priority_score >= :min_priority';
             $params[':min_priority'] = $minPri;
         }
 
         // Search filter (incident reference or title)
         if (!empty($filters['search'])) {
-            $searchTerm = trim((string)$filters['search']);
+            $searchTerm = trim((string) $filters['search']);
             if ($searchTerm !== '') {
                 $whereClauses[] = '(i.incident_reference LIKE :search_ref OR i.title LIKE :search_title)';
-                $params[':search_ref']   = '%' . $searchTerm . '%';
+                $params[':search_ref'] = '%' . $searchTerm . '%';
                 $params[':search_title'] = '%' . $searchTerm . '%';
             }
         }
@@ -1311,9 +1337,9 @@ $stmt = $pdo->prepare(
         $countSql = "SELECT COUNT(*) FROM incidents i JOIN incident_assignments a ON a.incident_id = i.id {$whereSql}";
         $countStmt = $pdo->prepare($countSql);
         $countStmt->execute($params);
-        $totalRecords = (int)$countStmt->fetchColumn();
+        $totalRecords = (int) $countStmt->fetchColumn();
 
-        $totalPages = max(1, (int)ceil($totalRecords / $perPage));
+        $totalPages = max(1, (int) ceil($totalRecords / $perPage));
         if ($page > $totalPages && $totalRecords > 0) {
             $page = $totalPages;
         }
@@ -1344,7 +1370,7 @@ $stmt = $pdo->prepare(
         $incidents = $stmt->fetchAll();
         foreach ($incidents as &$inc) {
             if (!empty($inc['priority_breakdown'])) {
-                $inc['priority_breakdown'] = json_decode((string)$inc['priority_breakdown'], true);
+                $inc['priority_breakdown'] = json_decode((string) $inc['priority_breakdown'], true);
             }
         }
         unset($inc);
@@ -1352,12 +1378,12 @@ $stmt = $pdo->prepare(
         return [
             'incidents' => $incidents,
             'pagination' => [
-                'current_page'  => $page,
-                'per_page'      => $perPage,
+                'current_page' => $page,
+                'per_page' => $perPage,
                 'total_records' => $totalRecords,
-                'total_pages'   => $totalPages,
-                'has_previous'  => $page > 1,
-                'has_next'      => $page < $totalPages
+                'total_pages' => $totalPages,
+                'has_previous' => $page > 1,
+                'has_next' => $page < $totalPages
             ]
         ];
     }
@@ -1409,7 +1435,7 @@ $stmt = $pdo->prepare(
         }
 
         if (!empty($incident['priority_breakdown'])) {
-            $incident['priority_breakdown'] = json_decode((string)$incident['priority_breakdown'], true);
+            $incident['priority_breakdown'] = json_decode((string) $incident['priority_breakdown'], true);
         }
 
         $incident['current_assignment'] = $assignment;
@@ -1444,7 +1470,7 @@ $stmt = $pdo->prepare(
              LIMIT 1"
         );
         $stmt->execute([':inc_id' => $incidentId, ':off_id' => $officerId]);
-        return (bool)$stmt->fetchColumn();
+        return (bool) $stmt->fetchColumn();
     }
 
     /**
@@ -1516,9 +1542,9 @@ $stmt = $pdo->prepare(
 
             if (!empty($report['incident_id'])) {
                 return [
-                    'success'            => false,
-                    'message'            => 'Report is already consolidated into an incident.',
-                    'incident_id'        => (int)$report['incident_id']
+                    'success' => false,
+                    'message' => 'Report is already consolidated into an incident.',
+                    'incident_id' => (int) $report['incident_id']
                 ];
             }
 
@@ -1531,14 +1557,14 @@ $stmt = $pdo->prepare(
             $incidentRef = sprintf('CS-SRT-%s-%s', date('Y'), strtoupper(bin2hex(random_bytes(3))));
 
             // 3. Compute Differential Geo-Obfuscation (~150m bounded fuzzing radius)
-            $fuzzRadius = (int)Env::get('GEO_FUZZ_RADIUS_METERS', 150);
+            $fuzzRadius = (int) Env::get('GEO_FUZZ_RADIUS_METERS', 150);
             if ($report['raw_lat'] !== null && $report['raw_lng'] !== null) {
-                $rawLat = (float)$report['raw_lat'];
-                $rawLng = (float)$report['raw_lng'];
+                $rawLat = (float) $report['raw_lat'];
+                $rawLng = (float) $report['raw_lng'];
 
                 // Bounded pseudorandom displacement
                 $angle = (mt_rand(0, 36000) / 100.0) * (M_PI / 180.0);
-                $distanceMeters = mt_rand((int)($fuzzRadius * 0.35), $fuzzRadius);
+                $distanceMeters = mt_rand((int) ($fuzzRadius * 0.35), $fuzzRadius);
                 $deltaLat = ($distanceMeters * cos($angle)) / 111320.0;
                 $deltaLng = ($distanceMeters * sin($angle)) / (111320.0 * max(0.1, cos(deg2rad($rawLat))));
 
@@ -1553,7 +1579,7 @@ $stmt = $pdo->prepare(
             // 4. Determine neighborhood locality
             $neighborhood = 'Surat Municipal Jurisdiction';
             if (!empty($report['location_description'])) {
-                $loc = trim((string)$report['location_description']);
+                $loc = trim((string) $report['location_description']);
                 if (str_contains($loc, ',')) {
                     $parts = array_map('trim', explode(',', $loc));
                     $neighborhood = end($parts) ?: $loc;
@@ -1567,7 +1593,7 @@ $stmt = $pdo->prepare(
 
             // 5. Compute initial priority score
             $severity = $report['submitted_severity'] ?: ($report['default_severity'] ?? 'medium');
-            $slaHours = (int)($report['resolution_sla_hours'] ?? 24);
+            $slaHours = (int) ($report['resolution_sla_hours'] ?? 24);
             $priResult = PriorityScorer::computeScore($severity, 1, 0.0, $slaHours);
             $priorityScore = $priResult['score'];
             $priorityBreakdown = json_encode($priResult['breakdown']);
@@ -1582,19 +1608,19 @@ $stmt = $pdo->prepare(
                   \'reported\', :lat, :lng, :fuzz_radius, :neighborhood, \'Surat\', 1, NOW(), NOW())'
             );
             $incStmt->execute([
-                ':ref'           => $incidentRef,
-                ':cat_id'        => $report['category_id'],
-                ':title'         => $report['title'],
-                ':description'   => $report['description'],
-                ':sev'           => $severity,
-                ':pri_score'     => $priorityScore,
+                ':ref' => $incidentRef,
+                ':cat_id' => $report['category_id'],
+                ':title' => $report['title'],
+                ':description' => $report['description'],
+                ':sev' => $severity,
+                ':pri_score' => $priorityScore,
                 ':pri_breakdown' => $priorityBreakdown,
-                ':lat'           => $obfLat,
-                ':lng'           => $obfLng,
-                ':fuzz_radius'   => $fuzzRadius,
-                ':neighborhood'  => $neighborhood
+                ':lat' => $obfLat,
+                ':lng' => $obfLng,
+                ':fuzz_radius' => $fuzzRadius,
+                ':neighborhood' => $neighborhood
             ]);
-            $incidentId = (int)$pdo->lastInsertId();
+            $incidentId = (int) $pdo->lastInsertId();
 
             // 7. Link report to this consolidated incident
             $upRepStmt = $pdo->prepare(
@@ -1614,14 +1640,14 @@ $stmt = $pdo->prepare(
                  VALUES (:inc_id, :actor_id, \'intake\', \'reported\', :reason, 1, NOW())'
             );
             $histStmt->execute([
-                ':inc_id'   => $incidentId,
+                ':inc_id' => $incidentId,
                 ':actor_id' => $actorUserId,
-                ':reason'   => sprintf('Created standalone municipal incident from citizen intake report %s.', $report['report_reference'])
+                ':reason' => sprintf('Created standalone municipal incident from citizen intake report %s.', $report['report_reference'])
             ]);
 
             // 9. Record audit log
             $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-            $ipHash = hash('sha256', $clientIp . (string)Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
+            $ipHash = hash('sha256', $clientIp . (string) Env::get('CSRF_SECRET_KEY', 'civicshield_salt'));
             $actorRole = $actorUserId ? 'admin' : 'system';
 
             $auditStmt = $pdo->prepare(
@@ -1630,15 +1656,15 @@ $stmt = $pdo->prepare(
                  VALUES (:actor_id, :actor_role, \'INCIDENT_CREATED_FROM_REPORT\', \'incident\', :target_id, :ip_hash, :meta, NOW())'
             );
             $auditStmt->execute([
-                ':actor_id'   => $actorUserId,
+                ':actor_id' => $actorUserId,
                 ':actor_role' => $actorRole,
-                ':target_id'  => (string)$incidentId,
-                ':ip_hash'    => $ipHash,
-                ':meta'       => json_encode([
-                    'report_id'          => $reportId,
-                    'report_reference'   => $report['report_reference'],
+                ':target_id' => (string) $incidentId,
+                ':ip_hash' => $ipHash,
+                ':meta' => json_encode([
+                    'report_id' => $reportId,
+                    'report_reference' => $report['report_reference'],
                     'incident_reference' => $incidentRef,
-                    'priority_score'     => $priorityScore,
+                    'priority_score' => $priorityScore,
                     'fuzz_radius_meters' => $fuzzRadius
                 ])
             ]);
@@ -1648,9 +1674,9 @@ $stmt = $pdo->prepare(
             }
 
             return [
-                'success'            => true,
-                'message'            => sprintf('Incident %s created successfully from report %s.', $incidentRef, $report['report_reference']),
-                'incident_id'        => $incidentId,
+                'success' => true,
+                'message' => sprintf('Incident %s created successfully from report %s.', $incidentRef, $report['report_reference']),
+                'incident_id' => $incidentId,
                 'incident_reference' => $incidentRef
             ];
 

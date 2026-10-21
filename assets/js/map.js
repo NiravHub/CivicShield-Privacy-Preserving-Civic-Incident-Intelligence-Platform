@@ -102,21 +102,62 @@ window.CivicMap = {
 
             const marker = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(map);
 
-            const popupContent = `
-                <div style="font-family: inherit; font-size: 0.85rem; min-width: 200px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <span class="cs-badge ${badgeClass}">${item.status.replace('_', ' ')}</span>
-                        <strong style="color: #64748b; font-size: 0.75rem;">${item.reference}</strong>
-                    </div>
-                    <h6 style="margin: 0 0 4px 0; font-size: 0.9rem; font-weight: 700; color: #0f172a;">${item.title}</h6>
-                    <div style="color: #475569; font-size: 0.78rem; margin-bottom: 6px;">
-                        <i class="bi bi-geo-alt"></i> ${item.neighborhood}, Surat
-                    </div>
-                    <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding-top: 4px; font-size: 0.72rem; color: #0284c7;">
-                        <i class="bi bi-shield-lock-fill"></i> Centroid ±150m geo-fuzzed for privacy
-                    </div>
-                </div>
-            `;
+            // Escape HTML for safe insertion
+                const escapeHTML = (str) => {
+                    if (typeof str !== 'string') return '';
+                    return str.replace(/[&<>\'\"]/g, (c) => ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        "'": '&#39;',
+                        '"': '&quot;'
+                    })[c]);
+                };
+                const popupDiv = document.createElement('div');
+                popupDiv.style.fontFamily = 'inherit';
+                popupDiv.style.fontSize = '0.85rem';
+                popupDiv.style.minWidth = '200px';
+                // header line
+                const headerDiv = document.createElement('div');
+                headerDiv.style.display = 'flex';
+                headerDiv.style.justifyContent = 'space-between';
+                headerDiv.style.alignItems = 'center';
+                headerDiv.style.marginBottom = '4px';
+                const badgeSpan = document.createElement('span');
+                badgeSpan.className = `cs-badge ${badgeClass}`;
+                badgeSpan.textContent = item.status.replace('_', ' ');
+                const refStrong = document.createElement('strong');
+                refStrong.style.color = '#64748b';
+                refStrong.style.fontSize = '0.75rem';
+                refStrong.textContent = item.reference;
+                headerDiv.appendChild(badgeSpan);
+                headerDiv.appendChild(refStrong);
+                popupDiv.appendChild(headerDiv);
+                // title
+                const titleH6 = document.createElement('h6');
+                titleH6.style.margin = '0 0 4px 0';
+                titleH6.style.fontSize = '0.9rem';
+                titleH6.style.fontWeight = '700';
+                titleH6.style.color = '#0f172a';
+                titleH6.textContent = item.title;
+                popupDiv.appendChild(titleH6);
+                // neighborhood line
+                const neighDiv = document.createElement('div');
+                neighDiv.style.color = '#475569';
+                neighDiv.style.fontSize = '0.78rem';
+                neighDiv.style.marginBottom = '6px';
+                neighDiv.innerHTML = `<i class="bi bi-geo-alt"></i> ${escapeHTML(item.neighborhood)}, Surat`;
+                popupDiv.appendChild(neighDiv);
+                // privacy note
+                const privacyDiv = document.createElement('div');
+                privacyDiv.style.background = '#f8fafc';
+                privacyDiv.style.borderTop = '1px solid #e2e8f0';
+                privacyDiv.style.paddingTop = '4px';
+                privacyDiv.style.fontSize = '0.72rem';
+                privacyDiv.style.color = '#0284c7';
+                privacyDiv.innerHTML = `<i class="bi bi-shield-lock-fill"></i> Centroid ±150m geo-fuzzed for privacy`;
+                popupDiv.appendChild(privacyDiv);
+                const popupContent = popupDiv.outerHTML;
 
             marker.bindPopup(popupContent);
             marker.category = item.category;
