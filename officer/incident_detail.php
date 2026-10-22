@@ -243,7 +243,7 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                             <div class="mb-3">
                                 <label for="resolutionPhoto" class="form-label fw-semibold small">Remediation Proof Photo <span class="text-danger">*</span></label>
                                 <input type="file" class="form-control" id="resolutionPhoto" name="resolution_photo" accept="image/jpeg,image/png,image/webp" required>
-                                <div class="form-text small">Accepted formats: JPEG, PNG, WebP &bull; Max 5MB. Sensitive EXIF metadata will be scrubbed automatically.</div>
+                                <div class="form-text small">Accepted formats: JPEG, PNG, WebP &bull; Max 5MB. Image metadata removal depends on successful image re-encoding.</div>
                             </div>
 
                             <div class="mb-3">
