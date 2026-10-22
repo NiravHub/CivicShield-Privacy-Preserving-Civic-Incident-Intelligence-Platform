@@ -964,7 +964,7 @@ class IncidentManager
                 Uploader::cleanup($uploadedAbsPath);
             }
             @error_log('[Resolution Evidence Error] ' . $e->getMessage());
-            return ['success' => false, 'message' => 'An error occurred while submitting resolution evidence: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'An unexpected error occurred while submitting resolution evidence.'];
         }
     }
 
@@ -1180,7 +1180,7 @@ class IncidentManager
                 $pdo->rollBack();
             }
             @error_log('[Resolution Review Error] ' . $e->getMessage());
-            return ['success' => false, 'message' => 'An error occurred while reviewing resolution evidence: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'An unexpected error occurred while reviewing resolution evidence.'];
         }
     }
 
