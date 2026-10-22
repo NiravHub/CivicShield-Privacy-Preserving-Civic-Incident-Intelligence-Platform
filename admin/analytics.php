@@ -367,18 +367,18 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
         </div>
     </div>
 
-    <!-- Geospatial Spatial Density Map (Differential Privacy Centroids) -->
+    <!-- Geospatial Spatial Density Map (Obfuscated Coordinates) -->
     <div class="card cs-card shadow-sm mb-4">
         <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h5 class="fw-bold mb-0 text-dark">
                     <i class="bi bi-geo-alt-fill text-danger me-2"></i>Municipal Spatial Density &amp; Hazard Clusters
                 </h5>
-                <small class="text-muted">Privacy-preserving obfuscated centroids (~150m spatial fuzz radius)</small>
+                <small class="text-muted">Incident coordinates are randomly displaced within the configured radius (typically 150m).</small>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <span class="badge bg-danger-subtle text-danger border border-danger small">
-                    <i class="bi bi-shield-lock-fill me-1"></i> Differential Privacy Active
+                    <i class="bi bi-shield-lock-fill me-1"></i> Coordinate Obfuscation Active
                 </span>
                 <span class="badge bg-light text-secondary border small">
                     Showing <?= count($mapIncidents) ?> Centroids
@@ -390,7 +390,7 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
         </div>
         <div class="card-footer bg-light py-2 small text-muted d-flex justify-content-between align-items-center flex-wrap">
             <span>
-                <i class="bi bi-info-circle me-1"></i> Circles illustrate the 150m privacy fuzzing radius protecting whistleblower home/sensor locations.
+                <i class="bi bi-info-circle me-1"></i> Circles show the configured coordinate-displacement radius. This is a privacy aid, not a formal differential-privacy guarantee.
             </span>
             <span class="text-secondary">
                 Map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" class="text-decoration-none">OpenStreetMap</a> contributors

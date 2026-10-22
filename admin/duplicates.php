@@ -143,6 +143,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // 2. Promote report to standalone canonical incident if not already linked
                     $promoResult = IncidentManager::createIncidentFromReport((int)$candidate['report_id'], $pdo, $adminUserId);
+                    if (empty($promoResult['success'])) {
+                        throw new RuntimeException(
+                            $promoResult['message'] ?? 'Failed to promote report into canonical incident.'
+                        );
+                    }
 
                     // 3. Audit Log entry
                     $auditStmt = $pdo->prepare(

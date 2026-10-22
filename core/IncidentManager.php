@@ -1524,7 +1524,7 @@ class IncidentManager
 
     /**
      * Promote an unlinked or standalone citizen intake report into a canonical consolidated incident.
-     * Applies Differential Geo-Obfuscation (approx. 150m noise boundary), initial priority scoring,
+     * Applies bounded random coordinate displacement (configured radius, typically 150m), initial priority scoring,
      * status history recording, and audit logging.
      *
      * @param int      $reportId    ID of the incident_report record
@@ -1572,7 +1572,7 @@ class IncidentManager
             // 2. Generate canonical incident reference: CS-SRT-YYYY-XXXX
             $incidentRef = sprintf('CS-SRT-%s-%s', date('Y'), strtoupper(bin2hex(random_bytes(3))));
 
-            // 3. Compute Differential Geo-Obfuscation (~150m bounded fuzzing radius)
+            // 3. Apply bounded random coordinate displacement (configured radius, typically 150m)
             $fuzzRadius = (int) Env::get('GEO_FUZZ_RADIUS_METERS', 150);
             if ($report['raw_lat'] !== null && $report['raw_lng'] !== null) {
                 $rawLat = (float) $report['raw_lat'];

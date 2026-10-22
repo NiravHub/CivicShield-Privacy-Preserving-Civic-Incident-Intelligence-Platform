@@ -37,7 +37,7 @@ flowchart TD
     end
 
     subgraph PrivacyEngine ["Privacy-Preserving Engine"]
-        GeoObf["Differential Geo-Obfuscation Engine"]
+        GeoObf["Coordinate Obfuscation Engine"]
         IPHasher["SHA-256 IP Pseudonymization"]
         TokenHasher["SHA-256 Single-Use Token Hasher"]
         MetaStripper["EXIF & Metadata Stripper"]
@@ -529,7 +529,7 @@ Phase 8 delivers the dedicated Field Officer Portal for CivicShield. It enables 
 | :--- | :--- | :--- |
 | `officer/index.php` | `requireAuth('officer')` | Field operations dashboard with real-time KPI metrics, immediate action work orders, and personal activity log. |
 | `officer/incidents.php` | `requireAuth('officer')` | Paginated personal dispatch queue with multi-field filtering (status, category, priority, view mode) and safe search. |
-| `officer/incident_detail.php?id=X` | `requireAuth('officer')` | Comprehensive incident work order dossier with Leaflet centroid map (150m privacy fuzzing circle), administrative instructions, linked pseudonymous reports, and operational status transition controls. Denies access (HTTP 403) to unassigned incidents. |
+| `officer/incident_detail.php?id=X` | `requireAuth('officer')` | Comprehensive incident work order dossier with Leaflet centroid map (configured coordinate-displacement radius circle), administrative instructions, linked pseudonymous reports, and operational status transition controls. Denies access (HTTP 403) to unassigned incidents. |
 
 ### 11.3. Role & Assignment Authorization Rules
 1. **Officer Role Validation:** Officer endpoints strictly verify `Session::hasRole('officer')`. Unauthenticated users are redirected to login (`auth/login.php?redirect=...`). Citizens or administrators attempting direct URL access are returned HTTP 403 Forbidden.
@@ -558,7 +558,7 @@ stateDiagram-v2
 ### 11.5. Privacy & Whistleblower Protection
 - **No Contact Enclave Leaks:** Field officers never receive data from `citizen_contacts`. Whistleblower phone numbers, email addresses, and true names are never exposed in officer views.
 - **No Raw Token Exposure:** Single-use tracking tokens remain strictly protected as one-way SHA-256 hashes. Linked reports are referenced solely by municipal tracking references (`REP-SRT-2026-XXXX`).
-- **Differentially Fuzzed Centroids:** Map views render the obfuscated incident centroid with a 150m privacy boundary circle, ensuring field crews locate the general hazard without exposing exact private premises.
+- **Obfuscated Incident Coordinates:** Map views render obfuscated incident coordinates with the configured coordinate-displacement radius circle, helping field crews locate general hazards without displaying the original submitted coordinates.
 
 ### 11.6. Test Commands & Verification
 ```powershell
@@ -661,7 +661,7 @@ If the Chart.js CDN is unreachable, analytics charts degrade to an inline notice
    - Citizen identity and contact records isolated in encrypted `citizen_contacts` enclave.
    - Public tracking API and analytics queries strictly omit joins to contact enclave.
    - Single-use tracking tokens stored exclusively as SHA-256 cryptographic digests.
-   - Public and analytics maps render obfuscated centroids with ~150m privacy fuzzing radius circles.
+   - Public and analytics maps render obfuscated centroids with configured coordinate-displacement radius circles.
 
 ### 13.6. Automated Regression & Test Coverage Matrix
 All test suites run in the local PHP 8 + MariaDB XAMPP environment:

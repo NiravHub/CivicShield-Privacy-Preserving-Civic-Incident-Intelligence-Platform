@@ -374,10 +374,10 @@ if ($dbHealth['connected']) {
                 <span><span class="cs-legend-dot" style="background:#ea580c;"></span> High Severity / Pothole</span>
                 <span><span class="cs-legend-dot" style="background:#d97706;"></span> Pending / In-Progress</span>
                 <span><span class="cs-legend-dot" style="background:#16a34a;"></span> Verified Resolved</span>
-                <span><span class="cs-legend-dot" style="background:#0284c7; border: 1px dashed #0284c7;"></span> 150m Privacy Fuzz Radius</span>
+                <span><span class="cs-legend-dot" style="background:#0284c7; border: 1px dashed #0284c7;"></span> Configured Displacement Radius</span>
             </div>
             <div class="text-muted">
-                <i class="bi bi-shield-check text-info me-1"></i> Public coordinates never disclose exact citizen residential origins.
+                <i class="bi bi-shield-check text-info me-1"></i> Public maps use obfuscated incident coordinates rather than the original submitted coordinates.
             </div>
         </div>
     </div>

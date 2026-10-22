@@ -1,7 +1,7 @@
 /**
  * CivicShield - Leaflet.js Mapping Utility
  * Provides privacy-preserving geospatial incident rendering,
- * differential geo-obfuscation noise visualizer, and category filtering.
+ * obfuscated coordinate rendering and displacement-radius visualization, and category filtering.
  */
 
 window.CivicMap = {
@@ -86,7 +86,7 @@ window.CivicMap = {
                 badgeClass = 'cs-badge-high';
             }
 
-            // 1. Draw Differential Privacy Obfuscation Radius
+            // 1. Draw the configured coordinate-displacement radius.
             this.addObfuscatedArea(map, item.lat, item.lng, item.radius || 150, {
                 color: markerColor,
                 fillColor: markerColor
@@ -155,7 +155,7 @@ window.CivicMap = {
                 privacyDiv.style.paddingTop = '4px';
                 privacyDiv.style.fontSize = '0.72rem';
                 privacyDiv.style.color = '#0284c7';
-                privacyDiv.innerHTML = `<i class="bi bi-shield-lock-fill"></i> Centroid ±150m geo-fuzzed for privacy`;
+                privacyDiv.innerHTML = `<i class="bi bi-shield-lock-fill"></i> Obfuscated location; circle shows configured displacement radius`;
                 popupDiv.appendChild(privacyDiv);
                 const popupContent = popupDiv.outerHTML;
 

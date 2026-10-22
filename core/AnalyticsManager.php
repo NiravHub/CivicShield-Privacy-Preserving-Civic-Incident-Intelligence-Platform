@@ -177,7 +177,7 @@ class AnalyticsManager
 
         $sql = "SELECT 
                     COUNT(*) AS total_incidents,
-                    COALESCE(SUM(CASE WHEN i.status IN ('reported', 'triaged', 'assigned', 'in_progress') THEN 1 ELSE 0 END), 0) AS open_incidents,
+                    COALESCE(SUM(CASE WHEN i.status IN ('reported', 'triaged', 'assigned', 'in_progress', 'resolution_submitted') THEN 1 ELSE 0 END), 0) AS open_incidents,
                     COALESCE(SUM(CASE WHEN i.status = 'in_progress' THEN 1 ELSE 0 END), 0) AS in_progress_incidents,
                     COALESCE(SUM(CASE WHEN i.status = 'assigned' THEN 1 ELSE 0 END), 0) AS assigned_incidents,
                     COALESCE(SUM(CASE WHEN i.status = 'resolved' THEN 1 ELSE 0 END), 0) AS resolved_incidents,

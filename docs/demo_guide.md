@@ -10,10 +10,10 @@
 
 CivicShield addresses a critical challenge in modern civic technology: **how to collect granular public hazard intelligence while protecting whistleblowers and citizen reporters from surveillance, retaliation, and location profiling**.
 
-The application is implemented using a **vanilla native PHP 8.x + MySQL/MariaDB (PDO)** architecture without heavy frameworks (Laravel, Symfony) or client build pipelines (Node, Webpack, React). It achieves enterprise-grade security and differential privacy through:
+The application is implemented using a **vanilla native PHP 8.x + MySQL/MariaDB (PDO)** architecture without heavy frameworks (Laravel, Symfony) or client build pipelines (Node, Webpack, React). It implements security controls and coordinate obfuscation through:
 
 1. **Cryptographic Pseudonyms & Privacy Enclave:** Citizen identity and optional follow-up contact details are isolated in an encrypted database enclave (`citizen_contacts`). Citizen reports store only pseudonyms, salted IP hashes, and SHA-256 digests of single-use tracking tokens.
-2. **Spatial Obfuscation:** Public maps and officer dossiers render obfuscated centroids with ~150m Gaussian noise radius zones rather than raw citizen intake coordinates.
+2. **Spatial Obfuscation:** Public maps and officer dossiers render obfuscated coordinates rather than raw citizen intake coordinates.
 3. **Automated Multi-Metric Duplicate Candidate Detection:** Incorporates Haversine geographic proximity, category matching, Levenshtein/Jaccard text similarity, and temporal proximity.
 4. **Transparent Priority Scoring:** Computes deterministic severity scores (0–100) based on municipal category weight, submitted urgency, citizen co-reporting density, and SLA decay.
 5. **Role-Based Access Control (RBAC):** Strict separation of duties between Citizens, Field Officers, and Municipal Administrators.
@@ -141,7 +141,7 @@ Follow this sequence to showcase the complete civic reporting, duplicate triage,
    - Priority Stratification (Low, Medium, High, Critical).
 4. **Inspect Geospatial Density Map:**
    - Obfuscated incident pins with 150m privacy fuzzing radius circles.
-   - Differential privacy visualization preserving municipal pattern analysis without leaking citizen home coordinates.
+   - Coordinate-obfuscation visualization for municipal pattern analysis.
 5. **Test Multi-Filter Toolbar:**
    - Filter by category, status, priority tier, or date range.
    - Apply filters and observe reactive KPI recalculations and chart updates.
@@ -196,6 +196,6 @@ Get-ChildItem -Recurse -Filter *.php | ForEach-Object { & "C:\xampp\php\php.exe"
 ## 5. Honest Known Limitations
 
 1. **CDN Dependency:** OpenStreetMap map tiles, Leaflet.js CSS/JS, and Chart.js 4.4.2 are loaded from public CDNs. If demonstrating offline without an internet connection, maps and charts gracefully fall back to tabular data and textual notices.
-2. **Centroid Obfuscation vs. Mathematical $\epsilon$-DP:** Spatial protection uses coordinate fuzzing (Gaussian perturbation within ~150m) and radius boundaries. It provides practical whistleblower protection rather than formal mathematical $(\epsilon, \delta)$-differential privacy proofs.
+2. **Coordinate Obfuscation vs. Mathematical $\epsilon$-DP:** Spatial protection uses bounded random coordinate displacement and configured radius boundaries. This provides a practical location-privacy measure but does not establish a formal mathematical $(\epsilon, \delta)$-differential privacy guarantee.
 3. **Session-Scoped Rate Limiting:** Login attempt throttling and tracking query rate limiting are stored in PHP session state. In production multi-server deployments, a Redis key-value store would be used.
 4. **File Upload Environment:** Image sanitization and EXIF stripping utilize PHP GD (`imagecreatefromjpeg`, etc.). In environments without GD, the uploader safely falls back to standard validated filesystem moves with `.htaccess` execution blocking.
