@@ -18,7 +18,7 @@ class IncidentManager
         'triaged' => ['assigned', 'in_progress', 'rejected'],
         'assigned' => ['in_progress', 'triaged', 'rejected'],
         'in_progress' => ['resolution_submitted', 'assigned', 'rejected'],
-        'resolution_submitted' => ['resolved', 'in_progress', 'rejected'],
+        'resolution_submitted' => ['resolved', 'rejected'],
         'resolved' => ['closed', 'in_progress'],
         'closed' => ['in_progress'],
         'rejected' => ['reported', 'triaged']
@@ -808,6 +808,7 @@ class IncidentManager
             $pdo->beginTransaction();
         }
 
+        $uploadedAbsPath = null;
         try {
             // 1. Fetch incident with row lock
             $incStmt = $pdo->prepare('SELECT id, incident_reference, status, category_id FROM incidents WHERE id = :id FOR UPDATE');
@@ -853,8 +854,9 @@ class IncidentManager
             }
 
             // 3. Process image upload via Uploader
-            $uploadResult = Uploader::processImage($file, 'incidents');
+            $uploadResult = Uploader::processImage($file);
             if (!$uploadResult['success']) {
+                // upload failed – rollback and return error
                 if ($manageTx && $pdo->inTransaction()) {
                     $pdo->rollBack();
                 }
@@ -863,28 +865,37 @@ class IncidentManager
                     'message' => $uploadResult['error'] ?? 'Image upload failed.'
                 ];
             }
+            // Extract uploader response (data nested under ['data'])
             $img = $uploadResult['data'];
+            // Absolute path needed for possible cleanup on later DB failure
+            $uploadedAbsPath = $img['absolute_path'] ?? null;
 
             // 4. Record resolution evidence
             $evStmt = $pdo->prepare(
-                'INSERT INTO resolution_evidence 
-                 (incident_id, assignment_id, officer_id, photo_path, photo_mime, photo_size_bytes, photo_sha256,
-                  evidence_notes, inspection_lat, inspection_lng, verification_status, created_at)
-                 VALUES (:inc_id, :assign_id, :off_id, :path, :mime, :size, :sha, :notes, :lat, :lng, \'pending_review\', NOW())'
+                'INSERT INTO resolution_evidence
+                 (incident_id, assignment_id, officer_id, photo_path, photo_mime,
+                  photo_size_bytes, photo_sha256, evidence_notes,
+                  inspection_lat, inspection_lng, verification_status, created_at)
+                 VALUES
+                 (:inc_id, :assign_id, :off_id, :path, :mime, :size, :sha,
+                  :notes, :lat, :lng, \'pending_review\', NOW())'
             );
+
             $evStmt->execute([
-                ':inc_id' => $incidentId,
+                ':inc_id'    => $incidentId,
                 ':assign_id' => $assignment['id'],
-                ':off_id' => $officerId,
-                ':path' => $img['file_path'],
-                ':mime' => $img['file_mime'],
-                ':size' => $img['file_size_bytes'],
-                ':sha' => $img['sha256_hash'],
-                ':notes' => $cleanNotes,
-                ':lat' => $inspectionLat,
-                ':lng' => $inspectionLng,
+                ':off_id'    => $officerId,
+                ':path'      => $img['file_path'],
+                ':mime'      => $img['file_mime'],
+                ':size'      => $img['file_size_bytes'],
+                ':sha'       => $img['sha256_hash'],
+                ':notes'     => $cleanNotes,
+                ':lat'       => $inspectionLat,
+                ':lng'       => $inspectionLng,
             ]);
+
             $evidenceId = (int) $pdo->lastInsertId();
+
 
             // 5. Update incident status to resolution_submitted
             $pdo->prepare(
@@ -944,8 +955,13 @@ class IncidentManager
                 'message' => 'Resolution evidence submitted successfully. Awaiting administrative verification.'
             ];
         } catch (Throwable $e) {
+            // Roll back DB transaction if we started one
             if ($manageTx && $pdo->inTransaction()) {
                 $pdo->rollBack();
+            }
+            // Clean up the uploaded file if it exists and the upload succeeded earlier
+            if (!empty($uploadedAbsPath)) {
+                Uploader::cleanup($uploadedAbsPath);
             }
             @error_log('[Resolution Evidence Error] ' . $e->getMessage());
             return ['success' => false, 'message' => 'An error occurred while submitting resolution evidence: ' . $e->getMessage()];
