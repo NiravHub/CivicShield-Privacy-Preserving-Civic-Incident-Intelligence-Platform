@@ -243,8 +243,8 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                                 <div class="<?= $idx > 0 ? 'border-top pt-3 mt-3' : '' ?>">
                                     <div class="row g-3 align-items-start">
                                         <div class="col-md-4 text-center">
-                                            <a href="<?= htmlspecialchars(BASE_URL . '/' . $ev['photo_path']) ?>" target="_blank" rel="noopener">
-                                                <img src="<?= htmlspecialchars(BASE_URL . '/' . $ev['photo_path']) ?>" alt="Resolution Evidence Photo" class="img-fluid rounded border shadow-sm" style="max-height: 180px; object-fit: cover;">
+                                            <a href="<?= htmlspecialchars(BASE_URL . '/media.php?id=' . $ev['id']) ?>" target="_blank" rel="noopener">
+                                                <img src="<?= htmlspecialchars(BASE_URL . '/media.php?id=' . $ev['id']) ?>" alt="Resolution Evidence Photo" class="img-fluid rounded border shadow-sm" style="max-height: 180px; object-fit: cover;">
                                             </a>
                                             <div class="text-muted mt-1" style="font-size:0.72rem;">
                                                 <i class="bi bi-zoom-in me-1"></i>Click to view full image

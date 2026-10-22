@@ -17,3 +17,8 @@
 
 # Force download or safe content types
 Options -Indexes -ExecCGI
+
+# Deny direct access to uploaded files
+<FilesMatch ".*">
+    Require all denied
+</FilesMatch>

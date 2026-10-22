@@ -281,8 +281,8 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                                 <div class="card p-3 bg-white border small shadow-sm">
                                     <div class="row g-3 align-items-center">
                                         <div class="col-md-4 text-center">
-                                            <a href="<?= htmlspecialchars(BASE_URL . '/' . $latestEv['photo_path']) ?>" target="_blank" rel="noopener">
-                                                <img src="<?= htmlspecialchars(BASE_URL . '/' . $latestEv['photo_path']) ?>" alt="Evidence Photo" class="img-fluid rounded border" style="max-height: 150px; object-fit: cover;">
+                                            <a href="<?= htmlspecialchars(BASE_URL . '/media.php?id=' . $latestEv['id']) ?>" target="_blank" rel="noopener">
+                                                <img src="<?= htmlspecialchars(BASE_URL . '/media.php?id=' . $latestEv['id']) ?>" alt="Evidence Photo" class="img-fluid rounded border" style="max-height: 150px; object-fit: cover;">
                                             </a>
                                             <div class="text-muted mt-1" style="font-size:0.7rem;"><i class="bi bi-zoom-in me-1"></i>Click to view full image</div>
                                         </div>
