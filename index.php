@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 $pageTitle = 'Privacy-Preserving Civic Incident Intelligence Platform';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'app.php';
+$loadLeaflet = true;
 require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
 
 $dbHealth = Database::checkHealth();

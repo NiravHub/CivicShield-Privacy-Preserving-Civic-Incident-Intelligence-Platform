@@ -46,15 +46,13 @@ function buildAnalyticsQuery(array $overrides = []): string {
     }
     return http_build_query($params);
 }
-
+$loadLeaflet = true;
 require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
 ?>
 
 <!-- Chart.js 4.4.2 UMD (graceful fallback when CDN unreachable) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
         onerror="window.__civicChartUnavailable = true;"></script>
-<!-- Leaflet.js 1.9.4 CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
 <div class="container-fluid px-lg-5 py-4">
     <!-- Header -->
@@ -465,9 +463,6 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
         </div>
     </div>
 </div>
-
-<!-- Leaflet.js -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 <!-- Visualizations Initialization Script -->
 <script>

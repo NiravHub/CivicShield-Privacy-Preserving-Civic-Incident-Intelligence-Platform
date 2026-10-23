@@ -25,8 +25,10 @@ $pageTitle = $pageTitle ?? 'Privacy-Preserving Civic Incident Intelligence Platf
     <!-- Bootstrap Icons 1.11.3 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
+<?php if (!empty($loadLeaflet)): ?>
     <!-- Leaflet.js 1.9.4 CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<?php endif; ?>
 
     <!-- CivicShield Design System -->
     <link rel="stylesheet" href="<?= htmlspecialchars(BASE_URL) ?>/assets/css/style.css">

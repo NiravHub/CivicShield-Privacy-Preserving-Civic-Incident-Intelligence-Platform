@@ -111,6 +111,7 @@ $resolutionEvidence = IncidentManager::getResolutionEvidence($incidentId, $pdo);
 
 $priBreakdown = $incident['priority_breakdown'] ?? [];
 
+$loadLeaflet = true;
 require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
 ?>
 

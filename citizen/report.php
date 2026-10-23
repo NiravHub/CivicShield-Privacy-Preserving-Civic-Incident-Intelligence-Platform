@@ -270,7 +270,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         Response::unprocessable('Validation failed.', $errors);
     }
 }
-
+$loadLeaflet = true;
 require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
 ?>
 

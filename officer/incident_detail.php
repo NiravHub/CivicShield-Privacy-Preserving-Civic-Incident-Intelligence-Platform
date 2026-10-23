@@ -108,12 +108,10 @@ $resolutionEvidence = IncidentManager::getResolutionEvidence($incidentId, $pdo);
 
 $assignment = $incident['current_assignment'];
 $isActiveAssignment = $incident['is_active_assignment'];
-
+$loadLeaflet = true;
 require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
 ?>
 
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
 <div class="container py-4">
     <!-- Breadcrumb & Top Controls -->
@@ -533,8 +531,6 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
     </div>
 </div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var lat = <?= (float)$incident['obfuscated_lat'] ?>;
