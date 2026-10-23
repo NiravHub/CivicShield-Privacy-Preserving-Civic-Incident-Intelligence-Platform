@@ -264,6 +264,7 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                 <span class="badge bg-warning text-dark fw-bold px-3 py-2">Requires Triage Action</span>
             </div>
 
+
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 small">
                     <thead class="table-light text-secondary">
@@ -279,18 +280,38 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                     <tbody>
                         <?php foreach ($pendingReports as $prep): ?>
                             <tr>
-                                <td><span class="badge bg-secondary-subtle text-dark border font-monospace"><?= htmlspecialchars($prep['report_reference']) ?></span></td>
-                                <td><i class="bi <?= htmlspecialchars($prep['category_icon'] ?? 'bi-tag') ?> text-info me-1"></i><?= htmlspecialchars($prep['category_name']) ?></td>
-                                <td class="fw-semibold text-dark"><?= htmlspecialchars($prep['title']) ?></td>
-                                <td><span class="badge cs-badge-<?= htmlspecialchars($prep['submitted_severity']) ?> text-uppercase"><?= htmlspecialchars($prep['submitted_severity']) ?></span></td>
-                                <td class="text-muted"><?= date('d M Y, h:i A', strtotime($prep['created_at'])) ?></td>
-                                <td class="text-end">
-                                    <form method="POST" action="<?= htmlspecialchars(BASE_URL) ?>/admin/incidents.php" class="d-inline">
-                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Session::getCsrfToken()) ?>">
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-dark border font-monospace">
+                                        <?= htmlspecialchars($prep['report_reference']) ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <i class="bi <?= htmlspecialchars($prep['category_icon'] ?? 'bi-tag') ?> text-info me-1"></i>
+                                    <?= htmlspecialchars($prep['category_name']) ?>
+                                </td>
+                                <td class="fw-semibold text-dark">
+                                    <?= htmlspecialchars($prep['title']) ?>
+                                </td>
+                                <td>
+                                    <span class="badge cs-badge-<?= htmlspecialchars($prep['submitted_severity']) ?> text-uppercase">
+                                        <?= htmlspecialchars($prep['submitted_severity']) ?>
+                                    </span>
+                                </td>
+                                <td class="text-muted">
+                                    <?= date('d M Y, h:i A', strtotime($prep['created_at'])) ?>
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    <form method="POST"
+                                          action="<?= htmlspecialchars(BASE_URL) ?>/admin/incidents.php"
+                                          class="d-inline">
+                                        <input type="hidden" name="csrf_token"
+                                               value="<?= htmlspecialchars(Session::getCsrfToken()) ?>">
                                         <input type="hidden" name="action" value="promote_report">
                                         <input type="hidden" name="report_id" value="<?= (int)$prep['id'] ?>">
-                                        <button type="submit" class="btn btn-warning btn-sm fw-semibold" title="Create Canonical Municipal Incident">
-                                            <i class="bi bi-box-arrow-in-right me-1"></i> Promote to Incident
+                                        <button type="submit" class="btn btn-warning btn-sm fw-semibold"
+                                                title="Create Canonical Municipal Incident">
+                                            <i class="bi bi-box-arrow-in-right me-1"></i>
+                                            Promote to Incident
                                         </button>
                                     </form>
                                 </td>
@@ -301,6 +322,7 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
             </div>
         </div>
     <?php endif; ?>
+
 
     <!-- Filter & Search Panel -->
     <div class="card cs-card shadow-sm p-4 mb-4 border-light-subtle">
@@ -389,21 +411,24 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
             <span class="small text-muted">Page <?= $pagination['current_page'] ?> of <?= $pagination['total_pages'] ?></span>
         </div>
 
+
+
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="incidentsTable">
                 <thead class="table-light small text-uppercase text-secondary">
                     <tr>
                         <th style="min-width: 140px;">Incident Ref</th>
-                        <th style="min-width: 220px;">Category & Title</th>
-                        <th>Neighborhood</th>
-                        <th>Severity</th>
+                        <th style="min-width: 220px;">Category &amp; Title</th>
+                        <th style="min-width: 140px;">Neighborhood</th>
+                        <th style="min-width: 100px;">Severity</th>
                         <th style="min-width: 130px;">Priority Score</th>
-                        <th>Status</th>
+                        <th style="min-width: 130px;">Status</th>
                         <th style="min-width: 160px;">Dispatched Officer</th>
-                        <th>Reported</th>
-                        <th class="text-end" style="min-width: 180px;">Actions</th>
+                        <th style="min-width: 120px;">Reported</th>
+                        <th class="text-end" style="min-width: 130px;">Actions</th>
                     </tr>
                 </thead>
+
                 <tbody class="small">
                     <?php if (empty($incidents)): ?>
                         <tr>
@@ -497,7 +522,7 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
 
                                 <!-- Actions -->
                                 <td class="text-end">
-                                    <div class="btn-group btn-group-sm">
+                                    <div class="btn-group btn-group-sm flex-nowrap gap-2">
                                         <a href="<?= htmlspecialchars(BASE_URL) ?>/admin/incident_detail.php?id=<?= (int)$inc['id'] ?>" class="btn btn-outline-primary" title="View Incident Dossier">
                                             <i class="bi bi-eye"></i>
                                         </a>

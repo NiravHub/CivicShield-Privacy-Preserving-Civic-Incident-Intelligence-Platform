@@ -32,6 +32,7 @@ $pageTitle = $pageTitle ?? 'Privacy-Preserving Civic Incident Intelligence Platf
 
     <!-- CivicShield Design System -->
     <link rel="stylesheet" href="<?= htmlspecialchars(BASE_URL) ?>/assets/css/style.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars(BASE_URL) ?>/assets/css/design-system.css">
 </head>
 <body class="d-flex flex-column min-vh-100">
     <!-- Accessible Skip to Main Content Link -->

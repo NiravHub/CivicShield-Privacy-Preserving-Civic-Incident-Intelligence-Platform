@@ -76,7 +76,7 @@ $currentScript = basename($_SERVER['SCRIPT_NAME'] ?? '');
                 <?php endif; ?>
             </ul>
 
-            <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0">
+            <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0 ms-lg-3">
                 <?php if ($isLoggedIn): ?>
                     <div class="dropdown">
                         <button class="btn btn-outline-light btn-sm dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">

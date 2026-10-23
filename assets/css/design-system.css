@@ -1,0 +1,177 @@
+/* Design System stylesheet for CivicShield */
+:root {
+  /* Brand colors */
+  --cs-color-primary: #0d3b66; /* navy */
+  --cs-color-primary-light: #1e5a94;
+  --cs-color-primary-dark: #062240;
+  --cs-color-accent: #ef476f; /* coral */
+  --cs-color-success: #06d6a0;
+  --cs-color-warning: #ffd166;
+  --cs-color-danger: #ef3e36;
+  --cs-color-bg: #f8f9fa; /* light gray */
+  --cs-color-body: #212529;
+  /* Typography */
+  --cs-font-family-sans: "Helvetica Neue", Arial, system-ui, sans-serif;
+  --cs-font-size-base: 1rem;
+  --cs-font-size-lg: 1.125rem;
+  --cs-font-size-sm: 0.875rem;
+  /* Spacing */
+  --cs-space-0: 0;
+  --cs-space-1: 0.25rem;
+  --cs-space-2: 0.5rem;
+  --cs-space-3: 1rem;
+  --cs-space-4: 1.5rem;
+  --cs-space-5: 3rem;
+  /* Border radius */
+  --cs-radius-sm: 0.2rem;
+  --cs-radius: 0.4rem;
+  --cs-radius-lg: 0.8rem;
+}
+/* Utility classes */
+.cs-bg-primary {
+  background-color: var(--cs-color-primary) !important;
+  color: #fff;
+}
+.cs-text-primary {
+  color: var(--cs-color-primary) !important;
+}
+.cs-btn-primary {
+  background-color: var(--cs-color-primary);
+  border-color: var(--cs-color-primary-dark);
+  color: #fff;
+}
+.cs-btn-primary:hover {
+  background-color: var(--cs-color-primary-light);
+  border-color: var(--cs-color-primary);
+}
+.diagnostic-card {
+  background-color: var(--cs-color-primary-dark) !important;
+  color: #fff;
+}
+
+.btn-cs-primary:focus-visible {
+  outline: 3px solid var(--cs-color-accent);
+  outline-offset: 2px;
+}
+
+/* Severity badge colors */
+.cs-badge-low {
+  background-color: #d4edda !important; /* light green */
+  color: #155724 !important; /* dark green */
+}
+.cs-badge-medium {
+  background-color: #fff3cd !important; /* light amber */
+  color: #856404 !important; /* dark amber */
+}
+.cs-badge-high {
+  background-color: #ffe5b4 !important; /* light orange */
+  color: #8a2b00 !important; /* dark orange */
+}
+.cs-badge-critical {
+  background-color: #f8d7da !important; /* light red */
+  color: #842029 !important; /* dark red */
+}
+
+.cs-badge {
+  display: inline-block;
+  padding: var(--cs-space-1) var(--cs-space-2);
+  font-size: var(--cs-font-size-sm);
+  font-weight: 600;
+  border-radius: var(--cs-radius-sm);
+  background-color: var(--cs-color-primary);
+  color: #fff;
+}
+/* Override Bootstrap defaults where needed */
+body {
+  font-family: var(--cs-font-family-sans);
+  color: var(--cs-color-body);
+  background-color: var(--cs-color-bg);
+}
+
+/* Additional homepage styles */
+.cs-demo-tag {
+  display: inline-block;
+  padding: var(--cs-space-1) var(--cs-space-2);
+  background-color: var(--cs-color-accent);
+  color: #fff;
+  font-size: var(--cs-font-size-sm);
+  border-radius: var(--cs-radius-sm);
+  margin-bottom: var(--cs-space-2);
+}
+.cs-legend-dot {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  margin-right: 0.25rem;
+}
+
+.cs-step-card {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: var(--cs-radius);
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  padding: var(--cs-space-3);
+}
+.cs-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background-color: var(--cs-color-primary);
+  color: #fff;
+  border-radius: 50%;
+  font-weight: 600;
+  margin-bottom: var(--cs-space-2);
+}
+.cs-hero {
+  background: var(--cs-color-primary-dark);
+  color: #fff;
+  padding: var(--cs-space-5) 0;
+  border-radius: var(--cs-radius-lg);
+}
+
+.btn-cs-primary {
+  background-color: var(--cs-color-primary);
+  border-color: var(--cs-color-primary-dark);
+  color: #fff;
+}
+.btn-cs-primary:hover {
+  background-color: var(--cs-color-primary-light);
+  border-color: var(--cs-color-primary);
+  color: #fff;
+}
+.cs-category-card {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: var(--cs-radius);
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  padding: var(--cs-space-3);
+  text-align: center;
+}
+
+/* Admin Incident Ledger */
+#incidentsTable {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+#incidentsTable th,
+#incidentsTable td {
+  vertical-align: middle;
+}
+
+#incidentsTable td:last-child {
+    white-space: nowrap;
+}
+
+#incidentsTable td:last-child .btn-group {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+}
+
+#incidentsTable td:last-child .btn {
+    flex: 0 0 auto;
+}

@@ -34,7 +34,7 @@ if ($dbHealth['connected']) {
 <!-- ==============================================================================
  * Hero Section
  * ============================================================================== -->
-<section class="cs-card-hero py-5 position-relative" aria-labelledby="heroHeading">
+<section class="cs-hero py-5 position-relative text-start" aria-labelledby="heroHeading">
     <div class="container py-4">
         <div class="row align-items-center gy-5">
             <div class="col-lg-7">
@@ -42,13 +42,13 @@ if ($dbHealth['connected']) {
                     <i class="bi bi-shield-lock-fill"></i>
                     <span>Web Technology Open Elective Project &bull; Academic Prototype</span>
                 </div>
-                <h1 id="heroHeading" class="display-5 fw-bold text-white mb-3" style="line-height: 1.2;">
+                <h1 id="heroHeading" class="display-4 fw-bold text-white mb-3" style="line-height: 1.2;">
                     Civic<span class="text-info">Shield</span>: Privacy-Preserving Civic Incident Intelligence
                 </h1>
                 <p class="lead text-light text-opacity-75 mb-4" style="font-size: 1.15rem;">
                     Empowering citizens to report municipal hazards, broken infrastructure, and civic failures without fear of retaliation or surveillance. Built with geo-obfuscated public maps, single-use token tracking, and structured municipal triage.
                 </p>
-                <div class="d-flex flex-wrap gap-3">
+                <div class="hero-cta d-flex flex-wrap gap-3">
                     <a href="<?= htmlspecialchars(BASE_URL) ?>/citizen/report.php" class="btn btn-cs-primary btn-lg shadow-sm">
                         <i class="bi bi-megaphone-fill me-2"></i> Report an Issue
                     </a>
@@ -62,7 +62,7 @@ if ($dbHealth['connected']) {
             </div>
 
             <div class="col-lg-5">
-                <div class="card bg-dark bg-opacity-50 border-secondary border-opacity-50 text-light p-4 shadow-lg rounded-4">
+                <div class="card cs-card diagnostic-card bg-dark bg-opacity-50 border-secondary border-opacity-50 text-light p-4 shadow-lg rounded-4 mb-5">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="fw-bold text-info mb-0 d-flex align-items-center gap-2">
                             <i class="bi bi-cpu"></i> System Diagnostic State
@@ -116,7 +116,7 @@ if ($dbHealth['connected']) {
         </div>
 
         <div class="row g-4">
-            <div class="col-md-4">
+            <div class="col-md-4 mb-4">
                 <div class="card cs-card h-100 p-4">
                     <div class="d-inline-flex align-items-center justify-content-center bg-danger bg-opacity-10 text-danger rounded-3 p-3 mb-3" style="width: 52px; height: 52px;">
                         <i class="bi bi-shield-x fs-4"></i>
@@ -127,7 +127,7 @@ if ($dbHealth['connected']) {
                     </p>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 mb-4">
                 <div class="card cs-card h-100 p-4">
                     <div class="d-inline-flex align-items-center justify-content-center bg-info bg-opacity-10 text-info rounded-3 p-3 mb-3" style="width: 52px; height: 52px;">
                         <i class="bi bi-shield-lock fs-4"></i>
@@ -138,7 +138,7 @@ if ($dbHealth['connected']) {
                     </p>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 mb-4">
                 <div class="card cs-card h-100 p-4">
                     <div class="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success rounded-3 p-3 mb-3" style="width: 52px; height: 52px;">
                         <i class="bi bi-check2-circle fs-4"></i>
