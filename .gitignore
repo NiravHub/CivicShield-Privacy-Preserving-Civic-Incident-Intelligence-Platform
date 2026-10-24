@@ -1,40 +1,83 @@
 # ==============================================================================
-# CivicShield Platform - Git Ignore Rules
-# Excludes local secrets, personal uploads, application logs, and environment files
+# CivicShield — Git ignore rules
+# Keep source, SQL schema/seed/migrations, tests, and documentation under version control.
+# Exclude local secrets, runtime data, generated audits, and temporary work files.
 # ==============================================================================
 
-# Environment and Secrets (strictly local, never commit)
+# ----------------------------------------------------------------------
+# Local environment and secrets
+# ----------------------------------------------------------------------
 .env
-.env.local
-.env.*.local
-*.env
+.env.*
 !.env.example
+*.env
 config.local.php
 
-# Application Logs and Runtime Data
-logs/*
-!logs/.gitkeep
+# ----------------------------------------------------------------------
+# Application logs and runtime output
+# ----------------------------------------------------------------------
+/logs/*
+!/logs/.gitkeep
 *.log
 
-# User Uploads & Attachments (preserve directory structure via .gitkeep)
-uploads/*
-!uploads/.gitkeep
-!uploads/.htaccess
-!uploads/avatars/
-uploads/avatars/*
-!uploads/avatars/.gitkeep
-!uploads/incidents/
-uploads/incidents/*
-!uploads/incidents/.gitkeep
+# ----------------------------------------------------------------------
+# User-uploaded/runtime files
+# Keep the upload security rule and empty directory placeholders.
+# ----------------------------------------------------------------------
+/uploads/*
+!/uploads/.gitkeep
+!/uploads/.htaccess
+!/uploads/avatars/
+/uploads/avatars/*
+!/uploads/avatars/.gitkeep
+!/uploads/incidents/
+/uploads/incidents/*
+!/uploads/incidents/.gitkeep
 
-# Operating System & File System Metadata
+# ----------------------------------------------------------------------
+# Generated audit output and local review artifacts
+# ----------------------------------------------------------------------
+/CivicShield-Audit/
+/CivicShield-backup-*/
+/CivicShield-security-review.patch
+/civicshield-design-system-attempt.css
+/civicshield-redesign-attempt.patch
+
+# ----------------------------------------------------------------------
+# Scratch and local backup files
+# ----------------------------------------------------------------------
+/backup/
+/scratch/
+*.bak
+*.tmp
+*.temp
+*.orig
+*.rej
+*~
+
+# ----------------------------------------------------------------------
+# Database dumps/backups (keep database/schema.sql, seed.sql, migrations)
+# ----------------------------------------------------------------------
+*.sql.gz
+*.sql.zip
+*.dump
+*.backup
+db_backup*.sql
+/database/backups/
+/database/dumps/
+
+# ----------------------------------------------------------------------
+# Operating system files
+# ----------------------------------------------------------------------
 .DS_Store
 Thumbs.db
 desktop.ini
 ehthumbs.db
 $RECYCLE.BIN/
 
-# IDE, Editor, and Tool Artifacts
+# ----------------------------------------------------------------------
+# IDE/editor artifacts
+# ----------------------------------------------------------------------
 .idea/
 .vscode/
 *.suo
@@ -43,20 +86,14 @@ $RECYCLE.BIN/
 *.sln.docstates
 *.swp
 *.swo
-*~
 *.sublime-project
 *.sublime-workspace
 
-# Temporary, Cache, and Scratch Files
-scratch/
-tmp/
-cache/
-*.tmp
-*.bak
-
-# Database Backups & Local Dump Files
-*.sql.gz
-*.sql.zip
-*.dump
-*.backup
-db_backup*.sql
+# ----------------------------------------------------------------------
+# Generic temporary/cache/coverage artifacts
+# ----------------------------------------------------------------------
+/tmp/
+/cache/
+.phpunit.cache/
+coverage/
+*.cache
