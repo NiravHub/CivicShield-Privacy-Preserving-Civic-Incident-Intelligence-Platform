@@ -6,6 +6,18 @@
 (() => {
   "use strict";
 
+  // Escape untrusted text before inserting it into HTML.
+  const escapeHTML = (str) => {
+    if (str === null || str === undefined) return "";
+    return String(str).replace(/[&<>'"]/g, (c) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "'": "&#39;",
+      '"': "&quot;",
+    }[c]));
+  };
+
   // Retrieve CSRF token and Base URL from document meta tags
   const csrfToken =
     document
@@ -79,19 +91,7 @@
             ? "bi-exclamation-triangle-fill"
             : "bi-info-circle-fill";
 
-      // Escape HTML entities to prevent XSS
-      const escapeHTML = (str) => {
-        if (typeof str !== "string") return "";
-        return str.replace(/[&<>'\"]/g, (c) => {
-          return {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            "'": "&#39;",
-            '"': "&quot;",
-          }[c];
-        });
-      };
+
       const alertDiv = document.createElement("div");
       alertDiv.className = `alert alert-${type} alert-dismissible fade show d-flex align-items-center gap-2`;
       alertDiv.setAttribute("role", "alert");
