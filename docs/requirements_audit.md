@@ -429,9 +429,9 @@ All seven automated test suites were **actively rerun live** during this audit u
 
 ## 5. Five Highest-Priority Confirmed Gaps
 
-1. **Gap 1: Missing Original Requirements Checklist & Legacy Phase 1–5 Test Suites**
-   - **File References:** `docs/requirements.md` (0 bytes), `docs/project-audit.md` (0 bytes).
-   - **Explanation:** The original syllabus/rubric checklist containing ~70–75 requirements was never committed to the workspace. Furthermore, automated test coverage exists strictly for Phases 6–10; Phases 1 through 5 (initial setup, database schema DDL, authentication, and basic intake) lack dedicated regression test scripts (`tests/test_phase1.php` through `tests/test_phase5.php` do not exist).
+1. **Gap 1: Original External Requirements Checklist & Legacy Phase 1–5 Test Suites**
+   - **File References:** `docs/requirements.md`, `docs/project-audit.md`, and the absent original course rubric.
+   - **Status update (October 24, 2026):** `docs/requirements.md` and `docs/project-audit.md` are now populated; the earlier zero-byte finding describes the October 19 snapshot only. The original syllabus/rubric checklist containing approximately 70–75 requirements is still not present, and Phases 1–5 still lack dedicated regression scripts (`tests/test_phase1.php` through `tests/test_phase5.php`).
 
 2. **Gap 2: Distinct-Report Promotion Lacks Automated Unit/Regression Test Coverage — [RESOLVED]**
    - **File References:** `core/IncidentManager.php` (`createIncidentFromReport`, lines 1015–1189), `admin/duplicates.php` (lines 144–146), `citizen/report.php` (lines 228–234), `tests/test_distinct_report_promotion.php`.
@@ -453,3 +453,12 @@ All seven automated test suites were **actively rerun live** during this audit u
      1. Per-account/IP pair throttling (5 attempts per 5 minutes).
      2. IP-wide source throttling against distributed credential stuffing across usernames (20 attempts per 15 minutes).
      Attempts persist across session resets, cookie wipes, and session ID regeneration. Queries are strictly parameterized, indexed, and bounded in cost using `COUNT(*)` and `LIMIT 1 OFFSET ...` for $O(1)$ memory usage. Trusted IP resolution via `Session::getClientIp()` prevents header spoofing (`X-Forwarded-For`). Successful logins cleanly purge failed attempt records for that specific identifier without clearing unrelated limits. A robust fail-safe gracefully handles database outages, failing closed on authentication. Verified via automated test suite `tests/test_login_rate_limit.php` (10 passed, 0 failed).
+
+
+---
+
+## Documentation Follow-up — October 24, 2026
+
+This report's detailed test counts and checkpoint totals are the recorded October 19 snapshot; they have not been silently re-labelled as a fresh October 24 test run. Since that snapshot, documentation files that were empty have been populated and the README has been rewritten with a table of contents, architecture overview, local setup steps, current endpoint behavior, testing commands, limitations and a documentation index. New focused guides cover API behavior, deployment, database design, matching, priority, privacy, security and the demonstration scenario.
+
+The external course rubric remains unavailable in the repository. The documentation update therefore improves project documentation but does not establish formal course-rubric compliance. Current code and test output remain authoritative for implementation status; rerun the scripts in `docs/testing.md` before publishing fresh test totals.

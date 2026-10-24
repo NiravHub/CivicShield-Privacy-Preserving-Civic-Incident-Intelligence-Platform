@@ -60,3 +60,10 @@ Most manual test screenshots and request/response records were not saved. The ma
 The five reported automated test suites passed, with 67 passes and zero failures. The developer also reports passing all ten listed manual security checks. Because most manual evidence was not retained, the manual results should be treated as self-reported and not as an independent security audit.
 
 **Report status:** Initial security test record; further evidence collection recommended.
+
+
+## 7. Focused Follow-up — October 24, 2026
+
+The project has since received focused changes to the public health response, versioned tracking request method, tracking-page token handling and redirect sanitization. The developer reported the following browser checks as working: role-specific login redirects, rejection of unsafe external redirect targets, citizen reporting, valid/invalid tracking-token behavior, `405 Method Not Allowed` for GET to `api/v1/track.php`, and severity/badge rendering. PHP syntax checks were reported passing for `core/Session.php`, `auth/login.php`, `api/v1/health.php`, `api/v1/track.php` and `track.php`.
+
+These are developer-reported focused checks; this update does **not** claim that the nine scripts currently listed in `docs/testing.md` were all rerun together on October 24. The 67-pass total above remains the historical Phase 6–10 result recorded on October 19. This report is not an independent penetration test or proof that the application is vulnerability-free.

@@ -461,7 +461,7 @@ Phase 7 delivers the municipal administration and operational governance engine 
    - Inline modal shortcuts for instant officer dispatch and status transitions.
 
 2. **Incident Dossier View (`admin/incident_detail.php`):**
-   - Interactive Leaflet.js geospatial map displaying the obfuscated incident centroid and a 150m differential privacy fuzzing radius circle.
+   - Interactive Leaflet.js geospatial map displaying the obfuscated incident centroid and a approximately 150 m location-obfuscation radius circle (not a formal differential privacy guarantee).
    - Full 4-factor decision support priority breakdown (Severity, Corroboration, Civic Decay, Time Decay).
    - Consolidated citizen report history (references, submission modes, severities, timestamps).
    - Officer assignment ledger documenting work orders, department dispatches, and instructions.
@@ -657,7 +657,7 @@ If the Chart.js CDN is unreachable, analytics charts degrade to an inline notice
    - 100% of SQL queries utilize PDO prepared statements with positional or named parameter bindings.
    - Context-aware `htmlspecialchars()` escaping applied on all user-supplied outputs.
    - Multi-layer file upload filtering: MIME verification via `finfo`, file extension whitelisting, randomized stored filenames, EXIF scrubbing via GD, and `.htaccess` script execution prevention.
-4. **Differential Privacy & Whistleblower Anonymity:**
+4. **Location Obfuscation & Reporter Privacy:**
    - Citizen identity and contact records isolated in encrypted `citizen_contacts` enclave.
    - Public tracking API and analytics queries strictly omit joins to contact enclave.
    - Single-use tracking tokens stored exclusively as SHA-256 cryptographic digests.
@@ -675,3 +675,8 @@ All test suites run in the local PHP 8 + MariaDB XAMPP environment:
 | **Phase 10** | `tests/test_phase10.php` | End-to-end integration, security audit, CSRF, and session protection | 13 | 0 |
 | **Total** | **Comprehensive Full Coverage** | **All System Workflows** | **67** | **0 (100%)** |
 
+
+
+## Current Implementation Note — October 24, 2026
+
+The versioned public tracking endpoint is implemented at `api/v1/track.php` and accepts POST requests; GET requests return `405 Method Not Allowed`. The public health endpoint at `api/v1/health.php` returns a minimal health status rather than raw database diagnostics. Login throttling is backed by the `login_rate_limits` table, as described in the database schema and `docs/requirements_audit.md`. These controls are not a guarantee of complete security. Coordinate fuzzing is a location-obfuscation mechanism, not formal differential privacy.
