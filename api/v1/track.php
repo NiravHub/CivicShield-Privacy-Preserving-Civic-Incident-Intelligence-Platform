@@ -8,10 +8,19 @@ declare(strict_types=1);
  */
 
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'app.php';
+header('Cache-Control: no-store, private');
+header('Referrer-Policy: no-referrer');
 
-if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'POST'], true)) {
-    Response::badRequest('Tracking endpoint requires a GET or POST request.');
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Allow: POST');
+    // Method Not Allowed – only POST is accepted for token lookup.
+    http_response_code(405);
+    header('Cache-Control: no-store');
+    header('Referrer-Policy: no-referrer');
+    Response::json(false, 'Method Not Allowed. Use POST.', null, [], 405);
+    exit;
 }
+
 
 // Rate limiting check by client IP
 $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
@@ -31,9 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rawToken = trim((string)($_POST['token'] ?? ''));
     }
 }
-if ($rawToken === '') {
-    $rawToken = trim((string)($_GET['token'] ?? ''));
-}
+// GET token fallback removed – token must be provided via POST body only.
+
 
 if ($rawToken === '') {
     Response::badRequest('Please provide a valid tracking token.');

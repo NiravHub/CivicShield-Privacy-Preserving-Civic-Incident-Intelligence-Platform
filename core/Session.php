@@ -12,6 +12,80 @@ declare(strict_types=1);
  */
 class Session
 {
+    /**
+     * Sanitize a userâ€‘supplied redirect target.
+     *
+     * Accepts a raw string (from GET or POST) and returns a safe URL
+     * that stays within the same application.  If the value cannot be
+     * trusted, the method falls back to the application root (BASE_URL).
+     *
+     * The logic mirrors common openâ€‘redirect protections:
+     *   â€¢ Reject empty strings and control characters.
+     *   â€¢ Disallow protocolâ€‘relative URLs ("//evil.com").
+     *   â€¢ Disallow backâ€‘slash starts ("\\evil.com").
+     *   â€¢ Block dangerous schemes such as "javascript:".
+     *   â€¢ For absolute URLs, require http/https and a host that matches
+     *     the current BASE_URL host.
+     *   â€¢ For relative paths, prepend BASE_URL so redirects work from
+     *     installations that live under a subâ€‘directory.
+     */
+    public static function sanitizeRedirect(string $url): string
+    {
+        // Default fallback â€“ the root of the current installation.
+        $fallback = rtrim(BASE_URL, '/') . '/';
+
+        $trim = trim($url);
+        if ($trim === '') {
+            return $fallback;
+        }
+
+        // Reject control characters (0â€‘31, 127).
+        if (preg_match('/[\x00-\x1F\x7F]/', $trim)) {
+            return $fallback;
+        }
+
+        // Disallow protocolâ€‘relative URLs ("//example.com") and backâ€‘slash prefixes.
+        if (strpos($trim, '//') === 0 || strpos($trim, '\\') === 0) {
+            return $fallback;
+        }
+
+        // Disallow dangerous URI schemes.
+        $lower = strtolower($trim);
+        if (preg_match('#^(javascript|data|vbscript):#', $lower)) {
+            return $fallback;
+        }
+
+        // If the string starts with '/' treat it as an internal path.
+        if (strpos($trim, '/') === 0) {
+            // Prevent "//" after the leading slash (e.g., "/\/\/evil.com").
+            if (strpos($trim, '//', 1) !== false) {
+                return $fallback;
+            }
+            // Build absolute URL based on BASE_URL (handles subâ€‘directory installs).
+            return rtrim(BASE_URL, '/') . $trim;
+        }
+
+        // Otherwise attempt to parse as an absolute URL.
+        $parts = @parse_url($trim);
+        if ($parts === false || empty($parts['scheme']) || empty($parts['host'])) {
+            return $fallback;
+        }
+        $scheme = strtolower($parts['scheme']);
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            return $fallback;
+        }
+        // Host must match the current application's host.
+        $baseHost = parse_url(BASE_URL, PHP_URL_HOST);
+        if (isset($parts['host']) && strtolower($parts['host']) !== strtolower($baseHost)) {
+            return $fallback;
+        }
+        // Reconstruct path, query and fragment.
+        $path = $parts['path'] ?? '/';
+        $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+        $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
+        return $path . $query . $fragment;
+    }
+
     private static bool $started = false;
 
     /**
@@ -248,7 +322,7 @@ class Session
 
                 // Bounded count query leveraging idx_rate_ip_time
                 $ipCountStmt = $pdo->prepare(
-                    'SELECT COUNT(*) FROM login_rate_limits 
+                    'SELECT COUNT(*) FROM login_rate_limits
                      WHERE ip_address = :ip AND attempted_at >= FROM_UNIXTIME(:window_start)'
                 );
                 $ipCountStmt->execute([
@@ -261,10 +335,10 @@ class Session
                     // Fetch only the single threshold boundary attempt (O(1) memory)
                     $offset = (int)($maxIpAttempts - 1);
                     $ipTimeStmt = $pdo->prepare(
-                        'SELECT UNIX_TIMESTAMP(attempted_at) AS attempt_time 
-                         FROM login_rate_limits 
-                         WHERE ip_address = :ip AND attempted_at >= FROM_UNIXTIME(:window_start) 
-                         ORDER BY attempted_at DESC 
+                        'SELECT UNIX_TIMESTAMP(attempted_at) AS attempt_time
+                         FROM login_rate_limits
+                         WHERE ip_address = :ip AND attempted_at >= FROM_UNIXTIME(:window_start)
+                         ORDER BY attempted_at DESC
                          LIMIT 1 OFFSET ' . $offset
                     );
                     $ipTimeStmt->execute([
@@ -281,7 +355,7 @@ class Session
             $windowStart = $currentTime - $decaySeconds;
             // Bounded count query leveraging idx_rate_key_time
             $rateCountStmt = $pdo->prepare(
-                'SELECT COUNT(*) FROM login_rate_limits 
+                'SELECT COUNT(*) FROM login_rate_limits
                  WHERE rate_key = :rate_key AND attempted_at >= FROM_UNIXTIME(:window_start)'
             );
             $rateCountStmt->execute([
@@ -294,10 +368,10 @@ class Session
                 // Fetch only the single threshold boundary attempt (O(1) memory)
                 $offset = (int)($maxAttempts - 1);
                 $rateTimeStmt = $pdo->prepare(
-                    'SELECT UNIX_TIMESTAMP(attempted_at) AS attempt_time 
-                     FROM login_rate_limits 
-                     WHERE rate_key = :rate_key AND attempted_at >= FROM_UNIXTIME(:window_start) 
-                     ORDER BY attempted_at DESC 
+                    'SELECT UNIX_TIMESTAMP(attempted_at) AS attempt_time
+                     FROM login_rate_limits
+                     WHERE rate_key = :rate_key AND attempted_at >= FROM_UNIXTIME(:window_start)
+                     ORDER BY attempted_at DESC
                      LIMIT 1 OFFSET ' . $offset
                 );
                 $rateTimeStmt->execute([
@@ -361,7 +435,7 @@ class Session
         try {
             $pdo = Database::getConnection();
             $stmt = $pdo->prepare(
-                'INSERT INTO login_rate_limits (rate_key, ip_address, username, attempted_at) 
+                'INSERT INTO login_rate_limits (rate_key, ip_address, username, attempted_at)
                  VALUES (:rate_key, :ip_address, :username, NOW())'
             );
             $stmt->execute([
@@ -414,26 +488,7 @@ class Session
     /**
      * Sanitize redirect target to strictly internal relative paths, preventing open redirects.
      */
-    public static function sanitizeRedirect(?string $url, string $fallback = '/'): string
-    {
-        if (empty($url)) {
-            return $fallback;
-        }
 
-        $url = trim($url);
-
-        // Allow relative internal paths starting with /
-        if (str_starts_with($url, '/') && !str_starts_with($url, '//') && !str_starts_with($url, '/\\')) {
-            return $url;
-        }
-
-        // Allow internal paths matching BASE_URL
-        if (defined('BASE_URL') && str_starts_with($url, BASE_URL)) {
-            return $url;
-        }
-
-        return $fallback;
-    }
 
     /**
      * Get home dashboard URL for a given role.

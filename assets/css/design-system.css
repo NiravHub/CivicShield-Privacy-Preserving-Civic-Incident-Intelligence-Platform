@@ -78,8 +78,8 @@
   font-size: var(--cs-font-size-sm);
   font-weight: 600;
   border-radius: var(--cs-radius-sm);
-  background-color: var(--cs-color-primary);
-  color: #fff;
+  /* background-color set by severity classes */
+  /* color set by severity classes */
 }
 /* Override Bootstrap defaults where needed */
 body {

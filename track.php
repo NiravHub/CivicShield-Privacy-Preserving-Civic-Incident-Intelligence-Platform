@@ -4,7 +4,10 @@ declare(strict_types=1);
 $pageTitle = 'Track Incident Report';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'app.php';
 
-$tokenInput = trim((string)($_GET['token'] ?? $_POST['token'] ?? ''));
+$tokenInput = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $tokenInput = trim($_POST['token'] ?? '');
+}
 $reportData = null;
 $lookupError = null;
 
