@@ -1,6 +1,6 @@
 # CivicShield: Academic Demonstration & Evaluation Guide
 
-> **Web Technology Open Elective Project (OEP) &bull; Semester 5 &bull; Academic Year 2026**  
+> **Web Technology Open Elective Project (OEP) &bull; Semester 5 &bull; Academic Year 2026–27**  
 > **Platform:** CivicShield — Privacy-Preserving Civic Incident Intelligence Platform  
 > **Local Deployment URL:** `http://localhost/OEP/`
 
@@ -99,33 +99,20 @@ Follow this sequence to showcase the complete civic reporting, duplicate triage,
    - Priority score adjusts to reflect active operational triage.
    - Assignment history records the timestamp, assigning administrator, and operational notes.
 
-### Step 5: Officer Field Inspection & Status Remediation
+### Step 5: Officer Field Inspection & Resolution Submission
 1. Sign out and sign in as Officer: `officer_patel` / `OfficerPatel@2026`.
-2. Notice the **Field Officer Portal** (`officer/index.php`):
-   - Only active assignments for Officer Patel are shown.
-   - Workload counters display assigned vs in-progress tasks.
+2. Open the Field Officer Portal (`officer/index.php`) and confirm that the queue is limited to assigned work.
 3. Open the assigned incident dossier (`officer/incident_detail.php?id=...`).
-4. **Transition to In Progress:**
-   - In the update panel, select **In Progress (Active Work)**.
-   - Enter note: `Arrived on site with repair crew; barricading lane.`
-   - Click **Submit Field Update**.
-5. **Transition to Resolved:**
-   - Select **Resolved (Field Remediation Completed)**.
-   - Enter note: `Pothole filled with standard asphalt grade and steam-rolled; lane reopened.`
-   - Click **Submit Field Update**.
-6. **Key Evaluator Checkpoint:**
-   - Status history reflects the officer's name, timestamps, and justification.
-   - Officer linked reports view shows descriptions and sanitized landmarks but strictly omits citizen raw GPS pins and contact details.
+4. Move the incident to `in_progress` with a descriptive note, for example: `Arrived on site with repair crew; barricading lane.`
+5. Use the current resolution workflow to submit completion notes and evidence when prompted. Where the evidence workflow is enabled, the incident enters `resolution_submitted` for review rather than being treated as automatically verified.
+6. **Key checkpoint:** status history records the actor, timestamp and reason. Officer views must not expose citizen contact details or raw intake GPS.
 
-### Step 6: Admin Verification & Incident Closure
+### Step 6: Administrator Verification & Closure
 1. Sign back in as Administrator: `admin_surat` / `AdminSurat@2026`.
-2. Open the incident dossier.
-3. Verify the officer's remediation notes.
-4. Transition status to **Closed (Verified)** with verification note: `Field repair inspected via municipal CCTV; work order closed.`
-5. **Key Evaluator Checkpoint:**
-   - Resolved timestamp is recorded.
-   - Incident status is closed.
-   - Re-checking the citizen tracking token in `track.php` now reflects `Verified Resolved`.
+2. Open the incident dossier and review the officer's submission and any attached resolution evidence.
+3. Use the permitted administrative verification/status controls and supply a meaningful verification note.
+4. Confirm the resulting status and status-history entry. The exact permitted transition depends on the incident's current state; do not assume an arbitrary direct jump to `closed` is allowed.
+5. Re-check the citizen tracking token in `track.php` and confirm it presents public lifecycle status without staff-only notes, contact information or raw coordinates.
 
 ### Step 7: Civic Intelligence & Spatial Analytics
 1. As Administrator, navigate to **Analytics** (`admin/analytics.php`).
@@ -180,7 +167,7 @@ cd "C:\Users\LENOVO\Desktop\Study\Semester 5\WT\OEP"
 Get-ChildItem -Recurse -Filter *.php | ForEach-Object { & "C:\xampp\php\php.exe" -l $_.FullName }
 ```
 
-### Cumulative Test Results
+### Historical Cumulative Test Results (Recorded October 19, 2026)
 
 | Test Suite | Purpose | Tests | Result |
 | :--- | :--- | :---: | :---: |
@@ -197,5 +184,10 @@ Get-ChildItem -Recurse -Filter *.php | ForEach-Object { & "C:\xampp\php\php.exe"
 
 1. **CDN Dependency:** OpenStreetMap map tiles, Leaflet.js CSS/JS, and Chart.js 4.4.2 are loaded from public CDNs. If demonstrating offline without an internet connection, maps and charts gracefully fall back to tabular data and textual notices.
 2. **Coordinate Obfuscation vs. Mathematical $\epsilon$-DP:** Spatial protection uses bounded random coordinate displacement and configured radius boundaries. This provides a practical location-privacy measure but does not establish a formal mathematical $(\epsilon, \delta)$-differential privacy guarantee.
-3. **Session-Scoped Rate Limiting:** Login attempt throttling and tracking query rate limiting are stored in PHP session state. In production multi-server deployments, a Redis key-value store would be used.
+3. **Rate-Limiting Scope:** Login throttling uses persistent records in the `login_rate_limits` database table, rather than PHP-session-only state. Do not infer that the public tracking endpoint has a separate distributed rate limiter from the login-throttling implementation.
 4. **File Upload Environment:** Image sanitization and EXIF stripping utilize PHP GD (`imagecreatefromjpeg`, etc.). In environments without GD, the uploader safely falls back to standard validated filesystem moves with `.htaccess` execution blocking.
+
+
+## Documentation refresh note — October 24, 2026
+
+The 67-test table above is a historical snapshot from the earlier Phase 6–10 run, not proof that all current test scripts were rerun on this date. The repository now also includes focused scripts for persistent login throttling, distinct-report promotion, resolution evidence and resolution guards. See [Testing Guide](testing.md) for the current script list and run them in the configured local environment before making new pass-rate claims.
