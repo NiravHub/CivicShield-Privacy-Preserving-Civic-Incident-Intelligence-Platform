@@ -419,7 +419,6 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                     <tr>
                         <th style="min-width: 140px;">Incident Ref</th>
                         <th style="min-width: 220px;">Category &amp; Title</th>
-                        <th style="min-width: 140px;">Neighborhood</th>
                         <th style="min-width: 100px;">Severity</th>
                         <th style="min-width: 130px;">Priority Score</th>
                         <th style="min-width: 130px;">Status</th>
@@ -466,12 +465,6 @@ require_once INCLUDES_PATH . DIRECTORY_SEPARATOR . 'header.php';
                                         <i class="bi <?= htmlspecialchars($inc['category_icon'] ?? 'bi-tag') ?> text-info me-1"></i>
                                         <?= htmlspecialchars($inc['category_name']) ?>
                                     </div>
-                                </td>
-
-                                <!-- Neighborhood -->
-                                <td>
-                                    <span class="text-dark"><i class="bi bi-geo-alt text-secondary me-1"></i><?= htmlspecialchars($inc['neighborhood']) ?></span>
-                                    <div class="text-muted" style="font-size: 0.75rem;"><?= htmlspecialchars($inc['city']) ?></div>
                                 </td>
 
                                 <!-- Severity -->
