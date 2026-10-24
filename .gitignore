@@ -38,8 +38,10 @@ config.local.php
 # Generated audit output and local review artifacts
 # ----------------------------------------------------------------------
 /CivicShield-Audit/
+/CivicShield-backup-*/
 /CivicShield-security-review.patch
 /civicshield-design-system-attempt.css
+/civicshield-redesign-attempt.patch
 
 # ----------------------------------------------------------------------
 # Scratch and local backup files
